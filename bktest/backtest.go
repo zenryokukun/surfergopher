@@ -2,11 +2,12 @@ package backtest
 
 import (
 	"encoding/json"
-	"example/zen/gmo5/fibo"
-	"example/zen/gmo5/gmo"
-	"example/zen/gmo5/minmax"
 	"fmt"
 	"os"
+
+	"github.com/zenryokukun/surfergopher/fibo"
+	"github.com/zenryokukun/surfergopher/gmo"
+	"github.com/zenryokukun/surfergopher/minmax"
 )
 
 const (
