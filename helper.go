@@ -118,6 +118,10 @@ func doesExist(s ...string) {
 			if err != nil {
 				fmt.Println(err)
 			}
+			//TPROF_FPATHなら"0"を入れておく
+			if v == TPROF_FPATH {
+				f.Write([]byte("0"))
+			}
 			f.Close()
 		}
 	}

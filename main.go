@@ -20,7 +20,7 @@ const (
 	CLOSEDID_FPATH = "./data/closedposlist.txt" //closeしたorderIdのリスト
 	TPROF_FPATH    = "./data/totalprof.txt"     //総利益を保管しておくファイル
 	SPREAD_THRESH  = 1200.0                     //許容するスプレッド
-	TSIZE          = "0.01"                     //取引量
+	TSIZE          = "0.1"                      //取引量
 	BOTNAME        = "Surfer Gopher"            //botの名前
 	VER            = "@v1.0"                    //botのversion
 	PYSCRIPT       = "./py/chart.py"            //pythonスクリプト
