@@ -144,7 +144,7 @@ func positions(r *gmo.ReqHandler) []gmo.Positions {
 //spread1が閾値以下になるのを待つ
 //cnt分待っても閾値以下にならなければfalseを返す
 func waitForSpread(r *gmo.ReqHandler) bool {
-	cnt := 7
+	cnt := 100
 	for i := 0; i < cnt; i++ {
 		ti := newTicker(r)
 		if ti != nil {
