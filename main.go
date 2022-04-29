@@ -21,7 +21,7 @@ const (
 	ORDERID_FPATH  = "./data/orderid.txt"       //直近のorderIdを保存
 	CLOSEDID_FPATH = "./data/closedposlist.txt" //closeしたorderIdのリスト
 	TPROF_FPATH    = "./data/totalprof.txt"     //総利益を保管しておくファイル
-	SPREAD_THRESH  = 1200.0                     //許容するスプレッド
+	SPREAD_THRESH  = 1500.0                     //許容するスプレッド
 	TSIZE          = "0.1"                      //取引量
 	BOTNAME        = "Surfer Gopher"            //botの名前
 	VER            = "@v1.0"                    //botのversion
