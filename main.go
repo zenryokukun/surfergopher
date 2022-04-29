@@ -8,12 +8,14 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/zenryokukun/surfergopher/bktest"
 	"github.com/zenryokukun/surfergopher/fibo"
 	"github.com/zenryokukun/surfergopher/gmo"
 	"github.com/zenryokukun/surfergopher/minmax"
 )
 
 const (
+	TEST_MODE      = false //本番かテストモードか
 	SYMBOL         = "BTC_JPY"
 	POSITION_FPATH = "./data/poslist.txt"       //このbotのポジションを書き込むファイルパス
 	ORDERID_FPATH  = "./data/orderid.txt"       //直近のorderIdを保存
@@ -465,7 +467,9 @@ func live() {
 
 	//decが未設定の場合、fiboLevelに応じて設定
 	if dec == "" {
+
 		lvl := fibo.Level(inf.Scaled)
+
 		if lvl >= 5 {
 			if inf.Which == "B" {
 				dec = "BUY"
@@ -474,6 +478,7 @@ func live() {
 			}
 			logger(fmt.Sprintf("fibLvl>=5. recent:%v scaled:%v decision:%v", inf.Which, inf.Scaled, dec))
 		}
+
 		if lvl <= 1 {
 			if inf.Which == "B" {
 				dec = "BUY"
@@ -482,6 +487,16 @@ func live() {
 			}
 			logger(fmt.Sprintf("fibLvl<=1. recent:%v scaled:%v decision:%v", inf.Which, inf.Scaled, dec))
 		}
+
+		//added
+		if lvl == 4 {
+			if inf.Which == "B" {
+				dec = "BUY"
+			} else if inf.Which == "T" {
+				dec = "SELL"
+			}
+		}
+
 	}
 
 	//取引判断ありかつ保有positionなしならopen
@@ -543,6 +558,10 @@ func live() {
 
 }
 
+func test() {
+	bktest.Backtest()
+}
+
 func main() {
 	/*live() or backtest()*/
 	//必要なファイルが無い場合はからファイル作成
@@ -559,5 +578,9 @@ func main() {
 		TRADE_FPATH,
 	)
 
-	live()
+	if TEST_MODE {
+		test()
+	} else {
+		live()
+	}
 }

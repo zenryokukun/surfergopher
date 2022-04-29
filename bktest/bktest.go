@@ -1,4 +1,4 @@
-package backtest
+package bktest
 
 import (
 	"encoding/json"
@@ -174,9 +174,12 @@ func (s *Summary) close(price float64, otime int) float64 {
 }
 
 func Backtest() {
+	POS_FILE := "./bktest/pos.json"          //position inf
+	BAL_FILE := "./bktest/bal.json"          //total profit
+	DATA_FILE := "./bktest/testdata4hr.json" //candleData to test
 	//read test data
 	tdata := &gmo.CandlesData{}
-	if b, err := os.ReadFile("./testdata4hr.json"); err == nil {
+	if b, err := os.ReadFile(DATA_FILE); err == nil {
 		if err := json.Unmarshal(b, tdata); err != nil {
 			fmt.Println(err)
 		}
@@ -242,6 +245,7 @@ func Backtest() {
 		//fibolevelが5以上もしくは１以下の場合設定
 		if dec == "" {
 			lvl := fibo.Level(inf.Scaled)
+
 			if lvl >= 5 {
 				//fibo 76.4%以上で順張り
 				if inf.Which == "B" {
@@ -251,6 +255,15 @@ func Backtest() {
 				}
 			}
 			if lvl <= 1 {
+				if inf.Which == "B" {
+					dec = "BUY"
+				} else if inf.Which == "T" {
+					dec = "SELL"
+				}
+			}
+
+			//added
+			if lvl == 4 {
 				if inf.Which == "B" {
 					dec = "BUY"
 				} else if inf.Which == "T" {
@@ -268,6 +281,6 @@ func Backtest() {
 		bal.add(otime, pos.pl)
 	}
 	fmt.Printf("prof:%.f trades:%v\n", pos.pl, pos.cnt)
-	pos.chart.write("./chartdata/pos.json")
-	bal.write("./chartdata/bal.json")
+	pos.chart.write(POS_FILE)
+	bal.write(BAL_FILE)
 }
