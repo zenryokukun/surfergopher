@@ -517,6 +517,9 @@ func live() {
 
 	//取引判断ありかつ保有positionなしならopen
 	npos := filterPosition(req) //上で決済している可能性もあるため、再度保有positionを取得
+	if len(npos) > 0 {
+		logger("has pos. not trading in this frame...")
+	}
 	if dec != "" && len(npos) == 0 {
 		//open
 		openId = marketOpen(req, dec, TSIZE, act)
