@@ -129,6 +129,7 @@ func newTicker(r *gmo.ReqHandler) *gmo.TickerData {
 func orderIdToPosId(r *gmo.ReqHandler, orderId string) uint32 {
 	res := gmo.NewLatestExecutions(r, SYMBOL, "", "")
 	pid := res.FindByOrderId(orderId)
+	fmt.Printf("orderIdToPosId   pid:%v\n", pid)
 	return strToUint32(pid)
 }
 
@@ -190,11 +191,22 @@ func myPositionId() []uint32 {
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		id := scanner.Text()
-		uintid, err := strconv.ParseUint(id, 10, 32) //unit64
-		if err != nil {
-			return nil
+		if len(id) == 0 {
+			fmt.Println("scan was blank. continue..")
+			continue
 		}
-		ids = append(ids, uint32(uintid))
+
+		uintid, err := strconv.ParseUint(id, 10, 32) //unit64
+
+		if uintid > 0 && err == nil {
+			ids = append(ids, uint32(uintid))
+		}
+
+		if err != nil {
+			//strconvのエラー。空白行を読み込んだ時にエラーになるのでreturnはしない
+			fmt.Println(err)
+			//return nil
+		}
 	}
 
 	//return nil if len is 0
@@ -250,6 +262,7 @@ func updateTotalProf(prof string) string {
 		fmt.Println(err)
 		return ""
 	}
+	defer f.Close()
 	f.Write([]byte(newTProfStr))
 
 	return newTProfStr
@@ -273,6 +286,7 @@ func addClosedPos(myId string) {
 		fmt.Println(err)
 		return
 	}
+	defer f.Close()
 	f.Write([]byte(myId + "\n"))
 }
 
@@ -283,7 +297,9 @@ func addPosition(myId uint32) {
 		fmt.Println(err)
 		return
 	}
+	defer f.Close()
 	strId := fmt.Sprint(myId) + "\n"
+	fmt.Printf("addPosition   strid:%v\n", strId)
 	f.Write([]byte(strId))
 }
 
@@ -500,7 +516,8 @@ func live() {
 	}
 
 	//取引判断ありかつ保有positionなしならopen
-	if dec != "" && len(pos) == 0 {
+	npos := filterPosition(req) //上で決済している可能性もあるため、再度保有positionを取得
+	if dec != "" && len(npos) == 0 {
 		//open
 		openId = marketOpen(req, dec, TSIZE, act)
 		//marketOpenが成功していた時の処理
