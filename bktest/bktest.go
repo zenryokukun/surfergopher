@@ -14,30 +14,6 @@ const (
 	SYMBOL = "BTC_JPY"
 )
 
-func marketOpen(r *gmo.ReqHandler, side, size string) *gmo.OpenRes {
-	res := gmo.NewOpenOrder(r, SYMBOL, side, "MARKET", "", size, "", "")
-	return res
-}
-
-func marketClose(r *gmo.ReqHandler, side, size, posId string) *gmo.CloseRes {
-	res := gmo.NewCloseOrder(r, SYMBOL, side, "MARKET", "", posId, size, "")
-	return res
-}
-
-//LIMIT or STOP open-order.
-//etype = "LIMIT" or "STOP"
-func limitOpen(r *gmo.ReqHandler, side, etype, size, price string) *gmo.OpenRes {
-	res := gmo.NewOpenOrder(r, SYMBOL, side, etype, price, size, "", "")
-	return res
-}
-
-//LIMIT or STOP close-order.
-//etype = "LIMIT" or "STOP"
-func limitClose(r *gmo.ReqHandler, side, etype, size, price, posId string) *gmo.CloseRes {
-	res := gmo.NewCloseOrder(r, SYMBOL, side, etype, price, posId, size, "")
-	return res
-}
-
 func newTicker(r *gmo.ReqHandler) *gmo.TickerData {
 	if res := gmo.NewTicker(r, SYMBOL); res == nil {
 		return nil

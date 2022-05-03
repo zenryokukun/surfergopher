@@ -8,9 +8,8 @@ import (
 //variable
 const ok = 0
 
-//interface not in use..?
-type extractor interface {
-	Extract()
+type GMOAPI interface {
+	ErrorLog() string
 }
 
 //response types
@@ -18,11 +17,12 @@ type Base struct {
 	Status       int                 `json:"status"`
 	Msg          []map[string]string `json:"messages"`
 	ResponseTime string              `json:"responsetime"`
+	URL          string
 }
 
-type CancelOrderRes Base
+type CancelOrderRes struct{ Base }
 
-type ChangeOrderRes Base
+type ChangeOrderRes struct{ Base }
 
 type StatusRes struct {
 	Base
@@ -151,17 +151,19 @@ type PositionsRes struct {
 	} `json:"data"`
 }
 
+type Summary struct {
+	AveragePositionRate float64 `json:"averagePositionRate,string"`
+	LossGain            float64 `json:"positionLossGain,string"`
+	Side                string  `json:"side"`
+	OrderQuantity       float64 `json:"sumOrderQuantity,string"`
+	PositionQuantity    float64 `json:"sumPositionQuantity,string"`
+	Symbol              string  `json:"symbol"`
+}
+
 type PositionSummaryRes struct {
 	Base
 	Data struct {
-		List []struct {
-			AveragePositionRate string `json:"averagePositionRate"`
-			LossGain            string `json:"positionLossGain"`
-			Side                string `json:"side"`
-			OrderQuantity       string `json:"sumOrderQuantity"`
-			PositionQuantity    string `json:"sumPositionQuantity"`
-			Symbol              string `json:"symbol"`
-		} `json:"list"`
+		List []Summary `json:"list"`
 	} `json:"data"`
 }
 
@@ -201,15 +203,20 @@ type TickerData struct {
 //methods
 //********************************************************************************
 func (b *Base) ErrorLog() string {
+	if b.Status == 0 {
+		return ""
+	}
 	if b.Msg == nil {
-		return fmt.Sprintf("API STATUS:%v TIME:%v MSG:but no error messages....",
-			b.Status, b.ResponseTime)
+		er := fmt.Sprintf("At:%v API STATUS:%v TIME:%v MSG:but no error messages....", b.URL, b.Status, b.ResponseTime)
+		fmt.Println(er)
+		return er
 	}
 	msg := b.Msg[0]
 	code := msg["message_code"]
 	text := msg["message_string"]
-	return fmt.Sprintf("API STATUS:%v TIME:%v CODE:%v MSG:%v",
-		b.Status, b.ResponseTime, code, text)
+	er := fmt.Sprintf("At:%v API STATUS:%v TIME:%v CODE:%v MSG:%v", b.URL, b.Status, b.ResponseTime, code, text)
+	fmt.Println(er)
+	return er
 }
 
 func (c *CandlesRes) Extract() *CandlesData {
@@ -297,30 +304,4 @@ func (t *TickerRes) Extract(sym string) *TickerData {
 
 func (t *TickerData) Spread() float64 {
 	return t.Ask - t.Bid
-}
-
-//posIdに対応するorderIdを返す
-func (e *ExecutionsRes) FindByPosId(posId string) string {
-	if e.Status != ok {
-		return ""
-	}
-	for _, v := range e.Data.List {
-		if fmt.Sprint(v.PositionId) == posId {
-			return fmt.Sprint(v.OrderId)
-		}
-	}
-	return ""
-}
-
-//orderIdに対応するpositionIdを返す
-func (e *ExecutionsRes) FindByOrderId(orderId string) string {
-	if e.Status != ok {
-		return ""
-	}
-	for _, v := range e.Data.List {
-		if fmt.Sprint(v.OrderId) == orderId {
-			return fmt.Sprint(v.PositionId)
-		}
-	}
-	return ""
 }

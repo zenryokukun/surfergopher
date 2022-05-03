@@ -1,6 +1,7 @@
 package gmo
 
 import (
+	"fmt"
 	"log"
 )
 
@@ -109,21 +110,27 @@ func pPage(param map[string]string, page, count string) {
 }
 
 func NewStatus(r *ReqHandler) *StatusRes {
-	res := &StatusRes{}
-	r.Get(StatusDir, nil, res)
+	res := &StatusRes{Base: Base{URL: StatusDir}}
+	err := r.Get(StatusDir, nil, res)
+	if err != nil {
+		return nil
+	}
 	return res
 }
 
 func NewTicker(r *ReqHandler, sym string) *TickerRes {
-	res := &TickerRes{}
+	res := &TickerRes{Base: Base{URL: TickerDir}}
 	param := map[string]string{}
 	pSymbol(param, sym)
-	r.Get(TickerDir, param, res)
+	err := r.Get(TickerDir, param, res)
+	if err != nil {
+		return nil
+	}
 	return res
 }
 
 func NewCandles(r *ReqHandler, sym, itv, date string) *CandlesRes {
-	res := &CandlesRes{}
+	res := &CandlesRes{Base: Base{URL: CandlesDir}}
 	param := map[string]string{}
 	pCandles(param, sym, itv, date)
 	r.Get(CandlesDir, param, res)
@@ -131,65 +138,89 @@ func NewCandles(r *ReqHandler, sym, itv, date string) *CandlesRes {
 }
 
 func NewMargin(r *ReqHandler) *MarginRes {
-	res := &MarginRes{}
-	r.GetAuth(MarginDir, nil, res)
+	res := &MarginRes{Base: Base{URL: MarginDir}}
+	err := r.GetAuth(MarginDir, nil, res)
+	if err != nil {
+		return nil
+	}
 	return res
 }
 
 func NewAssets(r *ReqHandler) *AssetsRes {
-	res := &AssetsRes{}
-	r.GetAuth(AssetsDir, nil, res)
+	res := &AssetsRes{Base: Base{URL: AssetsDir}}
+	err := r.GetAuth(AssetsDir, nil, res)
+	if err != nil {
+		return nil
+	}
 	return res
 }
 
 func NewOrders(r *ReqHandler, orderId string) *OrdersRes {
-	res := &OrdersRes{}
+	res := &OrdersRes{Base: Base{URL: OrdersDir}}
 	param := map[string]string{}
 	pOrderId(param, orderId)
-	r.GetAuth(OrdersDir, param, res)
+	err := r.GetAuth(OrdersDir, param, res)
+	if err != nil {
+		return nil
+	}
 	return res
 }
 
 func NewActiveOrders(r *ReqHandler, sym, page, count string) *OrdersRes {
-	res := &OrdersRes{}
+	res := &OrdersRes{Base: Base{URL: ActiveOrdersDir}}
 	param := map[string]string{}
 	pSymbol(param, sym)
 	pPage(param, page, count)
-	r.GetAuth(ActiveOrdersDir, param, res)
+	err := r.GetAuth(ActiveOrdersDir, param, res)
+	if err != nil {
+		return nil
+	}
 	return res
 }
 
 func NewExecutions(r *ReqHandler, orderId, executionId string) *ExecutionsRes {
-	res := &ExecutionsRes{}
+	res := &ExecutionsRes{Base: Base{URL: ExecutionsDir}}
 	param := map[string]string{}
 	pEitherId(param, orderId, executionId)
-	r.GetAuth(ExecutionsDir, param, res)
+	err := r.GetAuth(ExecutionsDir, param, res)
+	if err != nil {
+		return nil
+	}
 	return res
 }
 
 func NewLatestExecutions(r *ReqHandler, sym, page, count string) *ExecutionsRes {
-	res := &ExecutionsRes{}
+	res := &ExecutionsRes{Base: Base{URL: LatestExecutionsDir}}
 	param := map[string]string{}
 	pSymbol(param, sym)
 	pPage(param, page, count)
-	r.GetAuth(LatestExecutionsDir, param, res)
+	err := r.GetAuth(LatestExecutionsDir, param, res)
+	if err != nil {
+		return nil
+	}
 	return res
 }
 
 func NewPositions(r *ReqHandler, sym, page, count string) *PositionsRes {
-	res := &PositionsRes{}
+	res := &PositionsRes{Base: Base{URL: PositionsDir}}
 	param := map[string]string{}
 	pSymbol(param, sym)
 	pPage(param, page, count)
-	r.GetAuth(PositionsDir, param, res)
+	err := r.GetAuth(PositionsDir, param, res)
+	if err != nil {
+		return nil
+	}
 	return res
 }
 
 func NewSummary(r *ReqHandler, sym string) *PositionSummaryRes {
-	res := &PositionSummaryRes{}
+	res := &PositionSummaryRes{Base: Base{URL: PositionSummaryDir}}
 	param := map[string]string{}
 	pSymbol(param, sym)
-	r.GetAuth(PositionSummaryDir, param, res)
+	err := r.GetAuth(PositionSummaryDir, param, res)
+	if err != nil {
+		return nil
+	}
 	return res
 }
 
@@ -199,7 +230,7 @@ func NewSummary(r *ReqHandler, sym string) *PositionSummaryRes {
 func NewOpenOrder(r *ReqHandler, sym, side, etype,
 	price, size, losscut, tif string) *OpenRes {
 
-	res := &OpenRes{}
+	res := &OpenRes{Base: Base{URL: OpenDir}}
 	param := map[string]interface{}{}
 	pSymboli(param, sym)
 	pSidei(param, side)
@@ -208,15 +239,17 @@ func NewOpenOrder(r *ReqHandler, sym, side, etype,
 	pSizei(param, size)
 	pLossCutPricei(param, losscut)
 	pTimeInForcei(param, tif)
-	r.Post(OpenDir, param, res)
+	err := r.Post(OpenDir, param, res)
+	if err != nil {
+		return nil
+	}
 	return res
 }
 
 //決済
-func NewCloseOrder(r *ReqHandler, sym, side, etype,
-	price, posId, size, tif string) *CloseRes {
+func NewCloseOrder(r *ReqHandler, sym, side, etype, price, posId, size, tif string) *CloseRes {
 
-	res := &CloseRes{}
+	res := &CloseRes{Base: Base{URL: CloseDir}}
 	param := map[string]interface{}{}
 	inParam := map[string]interface{}{}
 	//main param
@@ -225,17 +258,19 @@ func NewCloseOrder(r *ReqHandler, sym, side, etype,
 	pExecTypei(param, etype)
 	pPricei(param, price)
 	pTimeInForcei(param, tif)
-	//nested param
 	pPositionIdi(inParam, posId)
 	pSizei(inParam, size)
-	//nest param
 	param["settlePosition"] = []interface{}{inParam}
-	r.Post(CloseDir, param, res)
+	fmt.Println(param)
+	err := r.Post(CloseDir, param, res)
+	if err != nil {
+		return nil
+	}
 	return res
 }
 
 func NewCloseAll(r *ReqHandler, sym, side, etype, price, size, tif string) *CloseAllRes {
-	res := &CloseAllRes{}
+	res := &CloseAllRes{Base: Base{URL: CloseAllDir}}
 	param := map[string]interface{}{}
 	pSymboli(param, sym)
 	pSidei(param, side)
@@ -243,34 +278,46 @@ func NewCloseAll(r *ReqHandler, sym, side, etype, price, size, tif string) *Clos
 	pSizei(param, size)
 	pPricei(param, price)
 	pTimeInForcei(param, tif)
-	r.Post(CloseAllDir, param, res)
+	err := r.Post(CloseAllDir, param, res)
+	if err != nil {
+		return nil
+	}
 	return res
 }
 
 func NewChangeOrder(r *ReqHandler, orderId, price, losscut string) *ChangeOrderRes {
-	res := &ChangeOrderRes{}
+	res := &ChangeOrderRes{Base: Base{URL: ChangeOrderDir}}
 	param := map[string]interface{}{}
 	pOrderIdi(param, orderId)
 	pPricei(param, price)
 	pLossCutPricei(param, losscut)
-	r.Post(ChangeOrderDir, param, res)
+	err := r.Post(ChangeOrderDir, param, res)
+	if err != nil {
+		return nil
+	}
 	return res
 }
 
 func NewCancelOrder(r *ReqHandler, orderId string) *CancelOrderRes {
-	res := &CancelOrderRes{}
+	res := &CancelOrderRes{Base: Base{URL: CancelOrderDir}}
 	param := map[string]interface{}{}
 	pOrderIdi(param, orderId)
-	r.Post(CancelOrderDir, param, res)
+	err := r.Post(CancelOrderDir, param, res)
+	if err != nil {
+		return nil
+	}
 	return res
 }
 
 func NewCancelAll(r *ReqHandler, sym, side, settle string) *CancelAllRes {
-	res := &CancelAllRes{}
+	res := &CancelAllRes{Base: Base{URL: CancelAllDir}}
 	param := map[string]interface{}{}
 	param["symbols"] = []string{sym}
 	pSidei(param, side)
 	pSettlei(param, settle)
-	r.Post(CancelAllDir, param, res)
+	err := r.Post(CancelAllDir, param, res)
+	if err != nil {
+		return nil
+	}
 	return res
 }

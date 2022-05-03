@@ -35,14 +35,14 @@ type ReqHandler struct {
 	Auth   *authKeys
 }
 
-func (request *ReqHandler) Get(dir string, param Bmap, i interface{}) {
+func (request *ReqHandler) Get(dir string, param Bmap, i GMOAPI) error {
 	uri := pubURI(dir, param)
 
 	res, err := request.Client.Get(uri)
 
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 
 	defer res.Body.Close()
@@ -50,16 +50,20 @@ func (request *ReqHandler) Get(dir string, param Bmap, i interface{}) {
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 
 	err = json.Unmarshal(body, i)
 	if err != nil {
 		fmt.Println(err)
+		return err
 	}
+
+	i.ErrorLog()
+	return nil
 }
 
-func (request *ReqHandler) GetAuth(dir string, param Bmap, i interface{}) {
+func (request *ReqHandler) GetAuth(dir string, param Bmap, i GMOAPI) error {
 	api, secret := request.Auth.Keys()
 	uri := priURI(dir, param)
 	sign, nonce := getSign("GET", dir, "", secret)
@@ -67,7 +71,7 @@ func (request *ReqHandler) GetAuth(dir string, param Bmap, i interface{}) {
 
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 
 	setHeaderAuth(nonce, sign, api, req)
@@ -75,31 +79,34 @@ func (request *ReqHandler) GetAuth(dir string, param Bmap, i interface{}) {
 	res, err := request.Client.Do(req)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 	defer res.Body.Close()
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 
 	err = json.Unmarshal(body, i)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
+
+	i.ErrorLog()
+	return nil
 }
 
-func (request *ReqHandler) Post(dir string, param Imap, i interface{}) {
+func (request *ReqHandler) Post(dir string, param Imap, i GMOAPI) error {
 	api, secret := request.Auth.Keys()
 	uri := priURI(dir, nil)
 
 	reqbody, err := json.Marshal(param)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 
 	sign, nonce := getSign("POST", dir, string(reqbody), secret)
@@ -107,28 +114,31 @@ func (request *ReqHandler) Post(dir string, param Imap, i interface{}) {
 	req, err := http.NewRequest("POST", uri, strings.NewReader(string(reqbody)))
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 	setHeaderAuth(nonce, sign, api, req)
 	res, err := request.Client.Do(req)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 	defer res.Body.Close()
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 
 	err = json.Unmarshal(body, i)
 
 	if err != nil {
 		fmt.Println(err)
+		return err
 	}
 
+	i.ErrorLog()
+	return nil
 }
 
 func getNonce() string {
