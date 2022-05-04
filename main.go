@@ -453,8 +453,13 @@ func live() {
 			valuation, posSize = getLossGainAndSizeFromPos(posList)
 		} else if len(openId) > 0 {
 			//今回新規取引している場合、新たにサマリを取得して設定
+			fmt.Println("[test] in len(openId)>0")
+			time.Sleep(10 * time.Millisecond)
 			if nSum := gmo.NewSummary(req, SYMBOL); nSum != nil && nSum.Status == 0 {
+				fmt.Println("[test] in if nSum:=gmo.NewSummary...")
 				valuation, posSize = getLossGainAndSizeFromPos(nSum.Data.List)
+			} else {
+				fmt.Println("[test] NewSummary failed?")
 			}
 		}
 		//tweet用テキスト生成
