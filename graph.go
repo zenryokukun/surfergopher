@@ -59,6 +59,24 @@ func AddBalance(x int, y float64) {
 	xy.write()
 }
 
+//最後の値を書き換える。評価額設定用
+func ReplaceBalance(y float64) {
+	xy := &XY{}
+	b, err := os.ReadFile(BDATA_FPATH)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	err = json.Unmarshal(b, xy)
+	if err != nil {
+		fmt.Println(err)
+		//return
+	}
+	//最後の値をyに書き換えてファイル出力
+	xy.Y[len(xy.Y)-1] = y
+	xy.write()
+}
+
 //取引情報をファイルに出力
 func AddTradeHistory(nh *History) {
 	histo := &History{}

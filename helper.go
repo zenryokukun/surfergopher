@@ -126,3 +126,15 @@ func doesExist(s ...string) {
 		}
 	}
 }
+
+//文字列→小数点に変換して足し算して返す関数
+//["1.1","2.2"] -> 3.3
+func addStringFloat(f ...string) float64 {
+	sum := 0.0
+	for _, v := range f {
+		if vfloat, err := strconv.ParseFloat(v, 64); err == nil {
+			sum += vfloat
+		}
+	}
+	return sum
+}

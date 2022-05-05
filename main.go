@@ -451,6 +451,10 @@ func live() {
 		if len(closeIds) == 0 && len(posList) > 0 {
 			//保有positionがあり、今回決済されていない場合、評価額と保有量をセット
 			valuation, posSize = getLossGainAndSizeFromPos(posList)
+			//総利益に評価額を加減し、総利益ファイルを書き換える。
+			//グラフに評価額を表示させるために追加した。
+			totalPWithVal := addStringFloat(totalP, valuation)
+			ReplaceBalance(totalPWithVal)
 		} else if len(openId) > 0 {
 			//今回新規取引している場合、新たにサマリを取得して設定
 			fmt.Println("[test] in len(openId)>0")
@@ -507,11 +511,13 @@ func main() {
 		BDATA_FPATH,
 		TRADE_FPATH,
 	)
+
 	if TEST_MODE {
 		test()
 	} else {
 		live()
 	}
+
 }
 
 /*
