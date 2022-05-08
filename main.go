@@ -15,12 +15,12 @@ import (
 )
 
 const (
-	TEST_MODE      = false //本番かテストモードか
-	SYMBOL         = "BTC_JPY"
+	TEST_MODE = false //本番かテストモードか
+	//SYMBOL         = "BTC_JPY"
 	GLOBAL_FPATH   = "./globals.json"
 	CLOSEDID_FPATH = "./data/closedposlist.txt" //closeしたorderIdのリスト
 	TPROF_FPATH    = "./data/totalprof.txt"     //総利益を保管しておくファイル
-	SPREAD_THRESH  = 1500.0                     //許容するスプレッド
+	//SPREAD_THRESH  = 1500.0                     //許容するスプレッド
 	//TSIZE          = "0.1"                      //取引量
 	BOTNAME  = "Surfer Gopher" //botの名前
 	VER      = "@v1.0"         //botのversion
@@ -30,19 +30,23 @@ const (
 
 //環境によって分けるためグローバル変数にした
 var (
+	SYMBOL         string
 	TRADE_INTERVAL string
 	TSIZE          string
 	PROF_RATIO     float64
 	LOSS_RATIO     float64
+	SPREAD_THRESH  float64
 )
 
 //グローバル変数をファイルから設定
 func setGlobalVars() {
 	type gl struct {
+		Symbol        string  `json:"symbol"`
 		TradeInterval string  `json:"tradeInterval"`
 		Tsize         string  `json:"tsize"`
 		ProfRatio     float64 `json:"profRatio"`
-		LossRatio     float64 `json:"LossRatio"`
+		LossRatio     float64 `json:"lossRatio"`
+		SpreadThresh  float64 `json:"spreadThresh"`
 	}
 
 	gdata := &gl{}
@@ -50,10 +54,12 @@ func setGlobalVars() {
 	if b, err := os.ReadFile(GLOBAL_FPATH); err == nil {
 		json.Unmarshal(b, gdata)
 	}
+	SYMBOL = gdata.Symbol
 	TRADE_INTERVAL = gdata.TradeInterval
 	PROF_RATIO = gdata.ProfRatio
 	LOSS_RATIO = gdata.LossRatio
 	TSIZE = gdata.Tsize
+	SPREAD_THRESH = gdata.SpreadThresh
 }
 
 //Returns orderId
@@ -154,11 +160,34 @@ func waitForLossGain(r *gmo.ReqHandler, oid string) float64 {
 	return sum
 }
 
+//注文ステータスがEXECUTED（全量約定）まで待つ関数
+func waitUntilExecuted(r *gmo.ReqHandler, oid string) bool {
+	cnt := 10
+	for i := 0; i < cnt; i++ {
+		res := gmo.NewOrders(r, oid)
+		if res != nil && res.Status == 0 && len(res.Data.List) > 0 {
+			data := res.Data.List[0]
+			if data.Status == "EXECUTED" {
+				return true
+			}
+		}
+		time.Sleep(3 * time.Second)
+	}
+	//所定の時間待っても全量約定しなかった場合はfalse
+	return false
+}
+
 //closeIds分waitForLossGainを呼び出し、損益を合計して文字列で返す
 func getLossGain(r *gmo.ReqHandler, closeIds []string) string {
 	sum := 0.0
 	for _, c := range closeIds {
+		//未約定の注文が存在すると集計されないので、注文ステータスがEXECUTED（全量約定）になるまで待つ
+		b := waitUntilExecuted(r, c)
+		//注文ステータスがEXECUTEDにならなくても処理自体は進め、ログ出力。
 		sum += waitForLossGain(r, c)
+		if !b {
+			logger("close order status is not EXECUTED but continued...")
+		}
 	}
 	return fmt.Sprint(sum)
 }

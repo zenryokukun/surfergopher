@@ -32,11 +32,11 @@ type StatusRes struct {
 }
 
 type Ticker struct {
-	Ask       int     `json:"ask,string"`
-	Bid       int     `json:"bid,string"`
-	High      int     `json:"high,string"`
-	Last      int     `json:"last,string"`
-	Low       int     `json:"low,string"`
+	Ask       float64 `json:"ask,string"`
+	Bid       float64 `json:"bid,string"`
+	High      float64 `json:"high,string"`
+	Last      float64 `json:"last,string"`
+	Low       float64 `json:"low,string"`
 	Symbol    string  `json:"symbol"`
 	Timestamp string  `json:"timestamp"`
 	Volume    float64 `json:"volume,string"`
