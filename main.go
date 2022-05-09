@@ -219,8 +219,10 @@ func updateTotalProf(prof string) string {
 		fmt.Println(err)
 		return ""
 	}
-	//総利益をstring -> intに変換
-	tprof, err := strconv.ParseInt(string(b), 10, 32)
+	//vimでは最後に自動で改行が付く仕様のよう。。。byte->stringに変換、
+	//crとlfを除外し、int変換
+	profStr := chopNewLine(string(b))
+	tprof, err := strconv.ParseInt(profStr, 10, 32)
 	if err != nil {
 		fmt.Println(err)
 		return ""

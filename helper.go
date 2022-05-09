@@ -5,6 +5,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/zenryokukun/surfergopher/gmo"
@@ -137,4 +138,11 @@ func addStringFloat(f ...string) float64 {
 		}
 	}
 	return sum
+}
+
+//改行コード（cr lf）を削除
+func chopNewLine(s string) string {
+	ret := strings.TrimSuffix(s, "\n")  //lf削除
+	ret = strings.TrimSuffix(ret, "\r") //cr削除
+	return ret
 }
