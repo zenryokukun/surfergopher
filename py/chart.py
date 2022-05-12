@@ -1,7 +1,10 @@
-from cgi import test
+'''
+Generates tweet image from
+./candle.json,./trade.json,./balance.json
+'''
 import json
-import matplotlib.pyplot as plt
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 
 DATA_PATH = Path(__file__).parents[1] / "data"
@@ -48,8 +51,8 @@ def chart(tdata,pdata,bdata,opath):
             close_y.append(_y)
 
     ax.scatter(openbuy_x,openbuy_y,label="@openBuy",color="red")
-    ax.scatter(opensell_x,opensell_y,label="@openSell")
-    ax.scatter(close_x,close_y,label="@close",color="lime")
+    ax.scatter(opensell_x,opensell_y,label="@openSell",color="lime")
+    ax.scatter(close_x,close_y,label="@close",facecolors="none",edgecolors="black",s=80)
 
     ax2 = ax.twinx()
     ax2.set_ylabel("balance")
