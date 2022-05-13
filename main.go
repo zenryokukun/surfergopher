@@ -363,6 +363,10 @@ func genErrorTweetText() string {
 	return txt
 }
 
+//main処理
+//一定間隔のバッチで実行することを想定
+//基本１ポジションのみ持っていることを想定
+//複数あった場合にはエラーにはならないが、グラフとか総利益とかの値は保証されない
 func live() {
 	//**************************************************
 	//初期化
@@ -406,11 +410,18 @@ func live() {
 		//**********************************************************
 		dec = breakThrough(latest, inf)
 		if dec != "" {
+			//*******TODO*******
+			//breakと同じ向きのpositionも決済してしまっている。
+			//逆向きのpositionのみを決済することを検討する
+			//*******END*******
 			ids := marketCloseBoth(req, posList)
 			closeIds = append(closeIds, ids...)
 			if len(ids) > 0 {
 				logger(fmt.Sprintf("breakthrough:latest:%.f max:%.f min:%.f", latest, inf.Maxv, inf.Minv))
-				histo.addHistory(otime, latest, dec, "CLOSE")
+				//取引向きをポジションから設定するように修正
+				//複数ある場合は先頭の向きを設定
+				side := posList[0].Side
+				histo.addHistory(otime, latest, side, "CLOSE")
 			}
 		}
 
@@ -424,6 +435,9 @@ func live() {
 		cid := getCloseId(c1, c2)
 		if len(cid) > 0 {
 			closeIds = append(closeIds, cid)
+			//取引履歴設定。複数positionがある場合、先頭のサイドで見做し設定。
+			side := posList[0].Side
+			histo.addHistory(otime, latest, side, "CLOSE")
 		}
 
 		//*******************************************************
