@@ -378,7 +378,7 @@ func live() {
 	_dCnt := 80       //ろうそく足の数
 	dCnt := _dCnt + 1 //_dCnt分のろうそく足を評価用、直近を現在価格とするため+1する
 
-	candles := newCandles(req, TRADE_INTERVAL, dCnt) //ロウソク足取得
+	candles := newCandles(req, SYMBOL, TRADE_INTERVAL, dCnt) //ロウソク足取得
 	summaries := gmo.NewSummary(req, SYMBOL)
 
 	if candles != nil && summaries != nil && summaries.Status == 0 {
@@ -483,7 +483,7 @@ func live() {
 			AddBalance(otime, totalPfloat)
 		}
 		//グラフ用のロウソク足を取得して出力
-		if cdGraph := newCandles(req, TRADE_INTERVAL, 200); cdGraph != nil {
+		if cdGraph := newCandles(req, SYMBOL, TRADE_INTERVAL, 200); cdGraph != nil {
 			AddCandleData(cdGraph) //グラフ用　ロウソク足出力
 		}
 		//取引履歴を出力

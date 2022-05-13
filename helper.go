@@ -11,7 +11,7 @@ import (
 	"github.com/zenryokukun/surfergopher/gmo"
 )
 
-func newCandles(r *gmo.ReqHandler, itv string, cnt int) *gmo.CandlesData {
+func newCandles(r *gmo.ReqHandler, sym, itv string, cnt int) *gmo.CandlesData {
 	layout := dateLayout(itv)        //itvに応じてYYYY or YYYYMMDDを取得
 	day := time.Now().Format(layout) //現在時刻をYYYMMDD or YYYYにフォーマット
 
@@ -25,7 +25,7 @@ func newCandles(r *gmo.ReqHandler, itv string, cnt int) *gmo.CandlesData {
 			break
 		}
 		//api 実行
-		tmpres := gmo.NewCandles(r, "BTC_JPY", itv, day)
+		tmpres := gmo.NewCandles(r, sym, itv, day)
 		if tmpres == nil || tmpres.Status != 0 {
 			//error時はnilを返す
 			fmt.Printf("itv:%v,day:%v\n", itv, day)
