@@ -3,6 +3,7 @@ Generates tweet image from
 ./candle.json,./trade.json,./balance.json
 '''
 import json
+import datetime
 from pathlib import Path
 import matplotlib.pyplot as plt
 
@@ -15,7 +16,8 @@ BDATA_PATH = DATA_PATH / "balance.json"
 HERE = Path(__file__).parent
 OUT_PATH = HERE / "tweet.png"
 
-def chart(tdata,pdata,bdata,opath):
+
+def chart(tdata, pdata, bdata, opath):
     """グラフ表示
 
     Args:
@@ -23,13 +25,17 @@ def chart(tdata,pdata,bdata,opath):
         pdata (dict): open sell point data
         bdata (dict): balance data
     """
+
     fig = plt.figure()
     ax = fig.add_subplot(111)
+    ax.set_title("SURFER GOPHER RESULTS")
     ax.set_ylabel("BTC_JPY")
-    ax.plot(tdata["OpenTime"],tdata["Close"],label="close")
-    #ax.plot(tdata["OpenTime"],tdata["High"],label="high")
-    #ax.plot(tdata["OpenTime"],tdata["Low"],label="low")
-    
+
+    # unix timestamp -> jst datestring
+    tdata_x_date = unixlist_to_datelist(tdata["OpenTime"])
+
+    ax.plot(tdata_x_date, tdata["Close"], label="close")
+
     openbuy_x = []
     openbuy_y = []
     opensell_x = []
@@ -50,27 +56,65 @@ def chart(tdata,pdata,bdata,opath):
             close_x.append(_x)
             close_y.append(_y)
 
-    ax.scatter(openbuy_x,openbuy_y,label="@openBuy",color="red")
-    ax.scatter(opensell_x,opensell_y,label="@openSell",color="lime")
-    ax.scatter(close_x,close_y,label="@close",facecolors="none",edgecolors="black",s=80)
+    # unix timestamp -> jst datestring
+    openbuy_x_date = unixlist_to_datelist(openbuy_x)
+    opensell_x_date = unixlist_to_datelist(opensell_x)
+    close_x_date = unixlist_to_datelist(close_x)
 
+    ax.scatter(openbuy_x_date, openbuy_y, label="@openBuy", color="red")
+    ax.scatter(opensell_x_date, opensell_y, label="@openSell", color="lime")
+    ax.scatter(close_x_date, close_y, label="@close",
+               facecolors="none", edgecolors="black", s=80)
+
+    ###########################################
+    # 右グラフ
     ax2 = ax.twinx()
     ax2.set_ylabel("balance")
-    ax2.plot(bdata["X"],bdata["Y"],color="orange",label="totalProf")
-    plt.grid(True)
+
+    # unix timestamp -> jst datestring
+    bdata_x_date = unixlist_to_datelist(bdata["X"])
+
+    ax2.plot(bdata_x_date, bdata["Y"], color="orange", label="totalProf")
+
+    plt.grid(True)  # グリッド表示
     ax.legend(loc=1)
     ax2.legend(loc=2)
-    #plt.show()
-    plt.savefig(opath)
+
+    '''日付を間引きして表示。データが増えたらコメントはずす。
+    for i, lbl in enumerate(ax.get_xticklabels()):
+        if i % 2 != 0:
+            lbl.set_visible(False)
+    '''
+    ax.ticklabel_format(style="plain", axis="y")
+    plt.gcf().autofmt_xdate()  # 日付を縦表記にする
+    plt.tight_layout()  # ラベルが見切れるの防止するために必要
+    plt.savefig(opath)  # 画像として保存
 
 
-with open(CDATA_PATH) as f:
-    cdata = json.load(f)
+def unixlist_to_datelist(uts):
+    """[]unix timestamp ->[]date string
 
-with open(PDATA_PATH) as f:
-    pdata = json.load(f)
+    Args:
+        uts (float): unix timestamp
 
-with open(BDATA_PATH) as f:
-    bdata = json.load(f)
+    Returns:
+        []string:date string
+    """
+    ret = []
+    for u in uts:
+        ret.append(datetime.datetime.fromtimestamp(u))
+    return ret
 
-chart(cdata,pdata,bdata,OUT_PATH)
+
+if __name__ == "__main__":
+
+    with open(CDATA_PATH) as f:
+        cdata = json.load(f)
+
+    with open(PDATA_PATH) as f:
+        pdata = json.load(f)
+
+    with open(BDATA_PATH) as f:
+        bdata = json.load(f)
+
+    chart(cdata, pdata, bdata, OUT_PATH)
