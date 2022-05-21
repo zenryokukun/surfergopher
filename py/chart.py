@@ -76,7 +76,7 @@ def chart(tdata, pdata, bdata, opath):
 
     ax2.plot(bdata_x_date, bdata["Y"], color="orange", label="totalProf")
 
-    plt.grid(True)  # グリッド表示
+    ax.grid(True)
     ax.legend(loc=1)
     ax2.legend(loc=2)
 
