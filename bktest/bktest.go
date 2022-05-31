@@ -45,10 +45,10 @@ type Position struct {
 
 type Summary struct {
 	Position
-	chart  Chart
-	pl     float64 //total profit
-	profR  float64 // profit ratio
-	lossR  float64 //loss ratio MUST BE NEGATIVE
+	chart Chart
+	pl    float64 //total profit
+	//profR  float64 // profit ratio
+	//lossR  float64 //loss ratio MUST BE NEGATIVE
 	spread float64
 	cnt    int // count of trades
 }
@@ -90,24 +90,24 @@ func (p *Position) check(v float64) float64 {
 	}
 }
 
-func (s *Summary) isProfFilled(v float64) bool {
+func (s *Summary) isProfFilled(v, profR float64) bool {
 	if !s.Position.has() {
 		return false
 	}
 	if s.side == "BUY" {
-		return (v-s.price)/s.price >= s.profR
+		return (v-s.price)/s.price >= profR
 	} else {
-		return (s.price-v)/s.price >= s.profR
+		return (s.price-v)/s.price >= profR
 	}
 }
-func (s *Summary) isLossFilled(v float64) bool {
+func (s *Summary) isLossFilled(v, lossR float64) bool {
 	if !s.Position.has() {
 		return false
 	}
 	if s.side == "BUY" {
-		return (v-s.price)/s.price <= s.lossR
+		return (v-s.price)/s.price <= lossR
 	} else {
-		return (s.price-v)/s.price <= s.lossR
+		return (s.price-v)/s.price <= lossR
 	}
 }
 
@@ -163,8 +163,9 @@ func Backtest() {
 	tsize := 0.1
 	//lcount := 42 // 7days (4hr)
 	mcount := 80 // 5days (4hr)
-
-	pos := &Summary{profR: 0.05, lossR: -0.05, spread: 1200.00}
+	profR := 0.05
+	lossR := -0.05
+	pos := &Summary{ /*profR: 0.05, lossR: -0.05, */ spread: 1200.00}
 	bal := &Balance{}
 	offset := 0
 	for i, v := range tdata.Close[offset+mcount+1:] {
@@ -203,15 +204,24 @@ func Backtest() {
 			}
 		}
 
+		tLossR, tProfR := lossR, profR
+		ratio := (inf.Maxv - inf.Minv) / inf.Minv
+		_, _ = tLossR, tProfR
+
+		//一応これで取引回数70像、利益も5万円ほど増える、、、、
+		if ratio <= 0.18 {
+			tLossR = -0.03
+			tProfR = 0.03
+		}
 		//損失満たす
-		if pos.isLossFilled(v) {
+		if pos.isLossFilled(v, tLossR) {
 			pl := pos.close(v, otime)
 			_ = pl
 			//fmt.Printf("losscut:%.f\n", pl)
 		}
 
 		//利益満たす
-		if pos.isProfFilled(v) {
+		if pos.isProfFilled(v, tProfR) {
 			pl := pos.close(v, otime)
 			_ = pl
 			//fmt.Printf("prof:%.f\n", pl)
