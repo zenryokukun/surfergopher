@@ -3,8 +3,8 @@
 summary_all -> 月別の利益、月最期の総利益を集計
 show_all    -> summaryをグラフ表示
 --------------------------------
-[概要]
-balance.jsonなどから月次のレポート等をする。
+[概要1] Monthly Result Summary
+balance.jsonから月次のレポート等をする。
 balance.jsonは総損益が出力されているため、
 月次に換算するためには「今月の総利益-先月の総利益」と計算する
 --------------------------------
@@ -26,13 +26,17 @@ from pathlib import Path
 
 BOT = "SURFER GOPHER"
 
+# ********************************************************
+# Monthly Result Summary
+# ********************************************************
+
 
 def show_result(su):
     """
     月別利益を棒グラフ、総利益を折れ線グラフで表示する
 
     Args:
-        su (summary) 
+        su (summary)
     """
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -56,7 +60,16 @@ def show_result(su):
     ax2.legend(loc=1)
     # xラベルを傾ける（重なり防止）
     plt.xticks(rotation=30)
+    # 見切れ防止
+    plt.tight_layout()
     plt.show()
+
+
+def get_balance():
+    fp = Path(__file__).parents[1] / "data" / "balance.json"
+    with open(fp) as f:
+        data = json.load(f)
+        return data
 
 
 def summary_add(su, data, i):
@@ -66,7 +79,7 @@ def summary_add(su, data, i):
     Args:
         su (summary): 集約データ
         data ({"X","Y"}): balance.jsonのデータ
-        i (int): index 
+        i (int): index
     """
     # datetime as datetime object.
     d = datetime.datetime.fromtimestamp(data["X"][i])
@@ -105,10 +118,9 @@ def summary_all(show_current=False):
     Returns:
         summary
     """
-    fp = Path(__file__).parents[1] / "data" / "balance.json"
-    with open(fp) as f:
-        data = json.load(f)
-
+    data = get_balance()
+    if data is None:
+        return
     if len(data["X"]) == 0:
         return
 
@@ -134,8 +146,46 @@ def summary_all(show_current=False):
     return summary
 
 
+# ********************************************************
+# Recent Indicator Evaluation
+# ********************************************************
+
+def get_trade():
+    fp = Path(__file__).parents[1] / "data" / "trade.json"
+    with open(fp) as f:
+        data = json.load(f)
+        return data
+
+# ========================
+# working...6月分から
+# ========================
+
+
+def evaluate_all():
+    # 全期間評価
+    trades = get_trade()
+    # はじめの取引はエラーなので除外。。。
+    EXCLUDE = 1
+    times = trades["X"][EXCLUDE:]
+    sides = trades["Side"][EXCLUDE:]
+    sides = [side if i % 2 == 0 else "-" for i, side in enumerate(sides)]
+    actions = trades["Action"][EXCLUDE:]
+    btc = trades["Y"][EXCLUDE:]
+
+    tsets = []
+    for i in range(0, len(times)-1, 2):
+        _side = sides[i]
+        op = btc[i]  # open price
+        cp = btc[i+1]  # close price
+        prof = cp - op
+        if _side == "SELL":
+            prof = -prof
+        print(actions[i], actions[i+1])
+
+
 if __name__ == "__main__":
-    show_result(summary_all(True))
+    evaluate_all()
+    # show_result(summary_all(True))
     """
     su = {
         "month": ["2022-1", "2022-2", "2022-3", "2022-4", "2022-5", "2022-6",
