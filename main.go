@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	TEST_MODE = true //本番かテストモードか
+	TEST_MODE = false //本番かテストモードか
 	//SYMBOL         = "BTC_JPY"
 	GLOBAL_FPATH   = "./globals.json"
 	CLOSEDID_FPATH = "./data/closedposlist.txt" //closeしたorderIdのリスト
