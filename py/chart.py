@@ -117,4 +117,11 @@ if __name__ == "__main__":
     with open(BDATA_PATH) as f:
         bdata = json.load(f)
 
+    # candlesのほうが長い場合、長さをblenに合わせる
+    blen = len(bdata["X"])
+    clen = len(cdata["Open"])
+    if clen > blen:
+        for key in cdata.keys():
+            cdata[key] = cdata[key][-blen:]
+
     chart(cdata, pdata, bdata, OUT_PATH)

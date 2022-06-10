@@ -483,7 +483,7 @@ func live() {
 			AddBalance(otime, totalPfloat)
 		}
 		//グラフ用のロウソク足を取得して出力
-		if cdGraph := newCandles(req, SYMBOL, TRADE_INTERVAL, 200); cdGraph != nil {
+		if cdGraph := newCandles(req, SYMBOL, TRADE_INTERVAL, 500); cdGraph != nil {
 			AddCandleData(cdGraph) //グラフ用　ロウソク足出力
 		}
 		//取引履歴を出力
