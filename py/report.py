@@ -1,7 +1,7 @@
 """
 [想定利用関数]
 summary_all -> 月別の利益、月最期の総利益を集計
-show_all    -> summaryをグラフ表示
+show_result -> summaryをグラフ表示
 --------------------------------
 [概要1] Monthly Result Summary
 balance.jsonから月次のレポート等をする。
@@ -148,6 +148,9 @@ def summary_all(show_current=False):
 
 # ********************************************************
 # Recent Indicator Evaluation
+# 以下のコードは全てworking...6月分から、、出来るかな。。。
+# 初回のエラーや手動で決済したものでOPEN->CLOSEがずれているところが
+# あるため、実装出来ない可能性あり
 # ********************************************************
 
 def get_trade():
@@ -155,10 +158,6 @@ def get_trade():
     with open(fp) as f:
         data = json.load(f)
         return data
-
-# ========================
-# working...6月分から
-# ========================
 
 
 def evaluate_all():
