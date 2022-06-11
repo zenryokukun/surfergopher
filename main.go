@@ -326,6 +326,16 @@ func doLoss(r *gmo.ReqHandler, pos []gmo.Summary, v, ratio float64) string {
 	return id
 }
 
+//[]gmo.Summaryから、sideパラメタで指定したものだけ抽出する
+func whichPos(pos []gmo.Summary, side string) *gmo.Summary {
+	for _, p := range pos {
+		if side == p.Side {
+			return &p
+		}
+	}
+	return nil
+}
+
 //c1,c2で長さ1以上のほうを返す
 //両方長さ1以上ならc1を返す
 //両方長さ０なら空文字を返す
@@ -410,10 +420,21 @@ func live() {
 		//**********************************************************
 		dec = breakThrough(latest, inf)
 		if dec != "" {
-			//*******TODO*******
+			//*******************************TODO*******************************************
 			//breakと同じ向きのpositionも決済してしまっている。
 			//逆向きのpositionのみを決済することを検討する
-			//*******END*******
+			// [plan]
+			//sideToClose := oppositeSide(dec)
+			//posToClose := whichPos(posList,sideToClose)
+			//if posToClose != nil {
+			//	id := marketCloseSide(req,posToClose)
+			//	closeIds = append(closeIds,id)
+			//	if len(id) > 0 {
+			//		logger(fmt.Sprintf("breakthrough:latest:%.f max:%.f min:%.f", latest, inf.Maxv, inf.Minv))
+			//		histo.addHistory(otime,latest,posToClose.Side,"CLOSE")
+			//	}
+			//}
+			//*********************************END*******************************************
 			ids := marketCloseBoth(req, posList)
 			closeIds = append(closeIds, ids...)
 			if len(ids) > 0 {
