@@ -327,7 +327,7 @@ func doLoss(r *gmo.ReqHandler, pos []gmo.Summary, v, ratio float64) string {
 }
 
 //[]gmo.Summaryから、sideパラメタで指定したものだけ抽出する
-func whichPos(pos []gmo.Summary, side string) *gmo.Summary {
+func specifyPos(pos []gmo.Summary, side string) *gmo.Summary {
 	for _, p := range pos {
 		if side == p.Side {
 			return &p
@@ -425,7 +425,7 @@ func live() {
 			//逆向きのpositionのみを決済することを検討する
 			// [plan]
 			//sideToClose := oppositeSide(dec)
-			//posToClose := whichPos(posList,sideToClose)
+			//posToClose := specifyPos(posList,sideToClose)
 			//if posToClose != nil {
 			//	id := marketCloseSide(req,posToClose)
 			//	closeIds = append(closeIds,id)
