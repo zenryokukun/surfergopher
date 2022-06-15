@@ -14,7 +14,7 @@ Telling him to go back soon.
 In despair Surfer Gopher realized,  
 His Father's dangerous ambitions.
 
-"No,Father! I am definitely not 'GO'!"
+"No,Father! I am definitely not 'GO'!"  
 "You must return the world to us!"
 
 
