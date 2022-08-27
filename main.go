@@ -420,18 +420,17 @@ func live() {
 		//**********************************************************
 		dec = breakThrough(latest, inf)
 		if dec != "" {
-			//*******TODO*******
-			//breakと同じ向きのpositionも決済してしまっている。
-			//逆向きのpositionのみを決済することを検討する
-			//*******END*******
-			ids := marketCloseBoth(req, posList)
-			closeIds = append(closeIds, ids...)
-			if len(ids) > 0 {
-				logger(fmt.Sprintf("breakthrough:latest:%.f max:%.f min:%.f", latest, inf.Maxv, inf.Minv))
-				//取引向きをポジションから設定するように修正
-				//複数ある場合は先頭の向きを設定
-				side := posList[0].Side
-				histo.addHistory(otime, latest, side, "CLOSE")
+			//　breakthroughと逆向きのpositionを持っている場合、決済する
+			if len(posList) > 0 && posList[0].Side != dec {
+				ids := marketCloseBoth(req, posList)
+				closeIds = append(closeIds, ids...)
+				if len(ids) > 0 {
+					logger(fmt.Sprintf("breakthrough:latest:%.f max:%.f min:%.f", latest, inf.Maxv, inf.Minv))
+					//取引向きをポジションから設定するように修正
+					//複数ある場合は先頭の向きを設定
+					side := posList[0].Side
+					histo.addHistory(otime, latest, side, "CLOSE")
+				}
 			}
 		}
 
