@@ -410,7 +410,7 @@ func live() {
 		//**********************************************************
 		dec = breakThrough(latest, inf)
 		if dec != "" {
-			//　breakthroughと逆向きのpositionを持っている場合、決済する
+			//　breakthroughと逆向きのpositionを持っている場合決済する
 			if len(posList) > 0 && posList[0].Side != dec {
 				ids := marketCloseBoth(req, posList)
 				closeIds = append(closeIds, ids...)
