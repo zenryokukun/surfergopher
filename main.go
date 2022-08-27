@@ -23,7 +23,7 @@ const (
 	//SPREAD_THRESH  = 1500.0                     //許容するスプレッド
 	//TSIZE          = "0.1"                      //取引量
 	BOTNAME  = "Surfer Gopher" //botの名前
-	VER      = "@v1.0"         //botのversion
+	VER      = "@v2.0.0"       //botのversion
 	PYSCRIPT = "./py/chart.py" //pythonスクリプト
 	IMG_PATH = "./py/tweet.png"
 )
@@ -420,21 +420,10 @@ func live() {
 		//**********************************************************
 		dec = breakThrough(latest, inf)
 		if dec != "" {
-			//*******************************TODO*******************************************
+			//*******TODO*******
 			//breakと同じ向きのpositionも決済してしまっている。
 			//逆向きのpositionのみを決済することを検討する
-			// [plan]
-			//sideToClose := oppositeSide(dec)
-			//posToClose := specifyPos(posList,sideToClose)
-			//if posToClose != nil {
-			//	id := marketCloseSide(req,posToClose)
-			//	closeIds = append(closeIds,id)
-			//	if len(id) > 0 {
-			//		logger(fmt.Sprintf("breakthrough:latest:%.f max:%.f min:%.f", latest, inf.Maxv, inf.Minv))
-			//		histo.addHistory(otime,latest,posToClose.Side,"CLOSE")
-			//	}
-			//}
-			//*********************************END*******************************************
+			//*******END*******
 			ids := marketCloseBoth(req, posList)
 			closeIds = append(closeIds, ids...)
 			if len(ids) > 0 {
@@ -462,9 +451,41 @@ func live() {
 		}
 
 		//*******************************************************
-		//decが設定されていなかったらfibで設定
+		// decが設定されていなかったらfibで設定
+		// 24時間以上ポジションを持っている場合、損益レートを下げて利確。
 		//*******************************************************
 		if dec == "" {
+			// positionありの場合、利確損切ラインを-1%,1%に縮めて再判定
+			// 上で決済されている場合も、`あり`判定になるのに留意。
+			// doProf,doLossでエラーになる可能性あるが、panicせず空文字を返すはずなので
+			// そのままにしとく。
+			if len(posList) > 0 {
+				openPos := gmo.NewPositions(req, SYMBOL, "", "")
+				if openPos != nil && len(openPos.Data.List) > 0 {
+					// gmo PositionsのTimestamp "2022-02-12T12:12:12:12.011Z"のフォーマット
+					openDateStr := openPos.Data.List[0].Timestamp
+					// 日本時間にした上でtime.Time型に変換
+					openDateTime := convUTCStringToJSTStamp(openDateStr)
+					// 直近ろうそく足のopenTimeをtime.Time型に。
+					ot := time.Unix(int64(otime), 0)
+
+					hours := ot.Sub(openDateTime).Hours()
+
+					// positionを持ってから24時間以上経過してたら短縮利確
+					if hours >= 24 {
+						c1 := doLoss(req, posList, latest, -0.01)
+						c2 := doProf(req, posList, latest, 0.01)
+						// 後処理
+						cid := getCloseId(c1, c2)
+						if len(cid) > 0 {
+							closeIds = append(closeIds, cid)
+							//取引履歴設定。複数positionがある場合、先頭のサイドで見做し設定。
+							side := posList[0].Side
+							histo.addHistory(otime, latest, side, "CLOSE")
+						}
+					}
+				}
+			}
 			dec = fib(inf)
 		}
 
@@ -583,206 +604,4 @@ func main() {
 	} else {
 		live()
 	}
-
 }
-
-/*
-func live() {
-	req := gmo.InitGMO("./conf.json") //リクエストハンドラ初期化
-	titv := "4hour"                   //trade interval
-	profR := 0.05                     //profit ratio
-	lossR := -0.05                    //losscut ratio
-	_dCnt := 80                       //ろうそく足の数
-	dCnt := _dCnt + 1                 //_dCnt分のろうそく足を評価用、直近を現在価格とするため+1する
-
-	//ロウソク足取得
-	candles := newCandles(req, titv, dCnt)
-	//openTime
-	otime := candles.OpenTime[len(candles.OpenTime)-1]
-	//最後のindex -1でなく-2。直近はまだロウソク足形成中のため除外
-	lasti := len(candles.Close) - 2
-	//直近の(確定しているロウソク足の)終値
-	latest := candles.Close[lasti]
-	//inf初期化。Wrapも付ける。
-	inf := minmax.NewInf(candles.High[:lasti], candles.Low[:lasti]).AddWrap(latest)
-	//botのポジションのみ取得。配列で返ってくるので注意。
-	//pos := filterPosition(req)
-	//建玉一覧
-	summary := newSummary(req)
-	hasPos := summary.Has() //position保有フラグ
-	//action初期化
-	act := NewAction(len(pos))
-	//トレンドを入れる変数初期化。"BUY" or "SELL"
-	dec := ""
-	//このフレームでcloseしたときのorderId
-	closeId := ""
-	//このフレームでopenしたときのopenId
-	openId := ""
-	//このフレームで確定した利益
-	fixedProf := "0"
-	//このフレームでの取引を加味した総損益
-	totalProf := "0"
-	//取引情報
-	histo := &History{}
-	//直近価格が最大値を超えている場合は買い判定をセット。
-	//売玉がある場合は決済もする。
-	if latest > inf.Maxv {
-		//ポジションを持っていなければopen-buy判定
-		if hasPos == false {
-			dec = "BUY"
-		} else {
-			//p := &pos[0] //配列なので[0]。複数の想定は無いが、その場合も[0]で処理
-			if summary.Side == "SELL" {
-				//CloseBuy
-				//CLOSE ALL を要実装
-				//closeId = marketClose(req, p, act)
-				if len(closeId) > 0 {
-					//marketCloseが成功していたら取引履歴を更新
-					histo.addHistory(otime, latest, "BUY", "CLOSE")
-				}
-				dec = "BUY"
-			}
-		}
-		logger(fmt.Sprintf("latest:%.f >> max:%.f", latest, inf.Maxv))
-
-	} else if latest <= inf.Minv {
-		//直近価格が最小値を下回っている場合は売り判定
-		//買玉がある場合は決済もする。
-		if hasPos == false {
-			dec = "SELL"
-		} else {
-			//p := &pos[0]
-			if summary.Side == "BUY" {
-				//CloseSell
-				closeId = marketClose(req, p, act)
-				if len(closeId) > 0 {
-					//marketCloseが成功していたら取引履歴を更新
-					histo.addHistory(otime, latest, "SELL", "CLOSE")
-				}
-				dec = "SELL"
-			}
-		}
-		logger(fmt.Sprintf("latest:%.f << max:%.f", latest, inf.Maxv))
-	}
-
-	//ポジションある時は利確・損切判定処理実施
-	if len(pos) > 0 {
-		p := &pos[0]
-		if isLossFilled(summary, latest, lossR) {
-			//Close
-			closeId = marketClose(req, p, act)
-			if len(closeId) > 0 {
-				//marketCloseが成功していた場合
-				s := oppositeSide(p.Side)                   //positionと逆のサイド
-				histo.addHistory(otime, latest, s, "CLOSE") //履歴更新
-				logger(fmt.Sprintf("profitFilled.latest:%.f posPrice:%.v", latest, p.Price))
-			}
-		}
-		if isProfFilled(summary, latest, profR) {
-			//close
-			closeId = marketClose(req, p, act)
-			if len(closeId) > 0 {
-				s := oppositeSide(p.Side)                   //positionと逆のサイド
-				histo.addHistory(otime, latest, s, "CLOSE") //履歴更新
-				logger(fmt.Sprintf("lossFilled.latest:%.f posPrice:%.v", latest, p.Price))
-			}
-		}
-	}
-
-	//decが未設定の場合、fiboLevelに応じて設定
-	if dec == "" {
-
-		lvl := fibo.Level(inf.Scaled)
-
-		if lvl >= 5 {
-			if inf.Which == "B" {
-				dec = "BUY"
-			} else if inf.Which == "T" {
-				dec = "SELL"
-			}
-			logger(fmt.Sprintf("fibLvl>=5. recent:%v scaled:%v decision:%v", inf.Which, inf.Scaled, dec))
-		}
-
-		if lvl <= 1 {
-			if inf.Which == "B" {
-				dec = "BUY"
-			} else if inf.Which == "T" {
-				dec = "SELL"
-			}
-			logger(fmt.Sprintf("fibLvl<=1. recent:%v scaled:%v decision:%v", inf.Which, inf.Scaled, dec))
-		}
-
-		//added
-		if lvl == 4 {
-			if inf.Which == "B" {
-				dec = "BUY"
-			} else if inf.Which == "T" {
-				dec = "SELL"
-			}
-		}
-
-	}
-
-	//取引判断ありかつ保有positionなしならopen
-	npos := filterPosition(req) //上で決済している可能性もあるため、再度保有positionを取得
-	if len(npos) > 0 {
-		logger("has pos. not trading in this frame...")
-	}
-	if dec != "" && len(npos) == 0 {
-		//open
-		openId = marketOpen(req, dec, TSIZE, act)
-		//marketOpenが成功していた時の処理
-		if len(openId) > 0 {
-			histo.addHistory(otime, latest, dec, "OPEN")
-		}
-	}
-
-	fmt.Printf("latest:%.f,max:%.f,min:.%f,scale:%f,decision:%v\n", latest, inf.Maxv, inf.Minv, inf.Scaled, dec)
-
-	//closeIdが設定されている場合、総利益を更新
-	if len(closeId) > 0 {
-		fixedProf = waitForLossGain(req, closeId)
-		totalProf = updateTotalProf(fixedProf)
-	}
-
-	//************************************************************
-	//以下はtweet用情報
-	//************************************************************
-	valuation := "0"
-	posSize := "0"
-	if len(closeId) == 0 {
-		totalProf = getTotalProf()
-		if len(pos) > 0 {
-			valuation = pos[0].LossGain
-			posSize = pos[0].Size
-		}
-	}
-
-	if len(openId) > 0 {
-		posSize = TSIZE
-	}
-
-	txt := genTweetText(fixedProf, totalProf, valuation, posSize)
-
-	//グラフ用データ設定
-	tpFloat, err := strconv.ParseFloat(totalProf, 64)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	//tweet画像用のファイル出力
-	cdGraph := newCandles(req, titv, 200)
-	AddTradeHistory(histo)
-	AddBalance(otime, tpFloat)
-	AddCandleData(cdGraph)
-	//画像生成python script
-	cmd := exec.Command(genPyCommand(), PYSCRIPT)
-	b, err := cmd.CombinedOutput()
-	if err != nil {
-		fmt.Println(err)
-		fmt.Println(string(b))
-	}
-	NewTwitter().tweetImage(txt, IMG_PATH)
-
-}
-*/

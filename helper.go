@@ -68,6 +68,19 @@ func toTime(ut int64) time.Time {
 	return time.Unix(ut, 0)
 }
 
+// "2022-08-20T00:01:02.604Z"のフォーマットの文字列を
+// 日本時間に変換した上でtime.Time型に変換。
+// dstrはgmoのPositionsのTimestampを想定
+// 取引時は9:01のように、1分の時に処理を回しているので0分になおしてる。
+// 直近のロウソク足の時間と、openした時の時間を計算するために使う想定
+func convUTCStringToJSTStamp(dstr string) time.Time {
+	loc, _ := time.LoadLocation("Asia/Tokyo")
+	t, _ := time.Parse(time.RFC3339, dstr)
+	jt := t.In(loc)
+	nt := time.Date(jt.Year(), jt.Month(), jt.Day(), jt.Hour(), 0, 0, 0, loc)
+	return nt
+}
+
 func strToUint32(s string) uint32 {
 	i, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {

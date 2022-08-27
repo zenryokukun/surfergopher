@@ -5,6 +5,7 @@ Generates tweet image from
 import json
 import datetime
 from pathlib import Path
+from tokenize import Number
 import matplotlib.pyplot as plt
 
 
@@ -106,16 +107,52 @@ def unixlist_to_datelist(uts):
     return ret
 
 
+def slice_after(obj, after: int):
+    # obj -> {key1:[any,],key2:[any,]}
+    # dictionaryのvalueはlistである必要生。
+    ret = {k: v[after:] for k, v in obj.items()}
+    return ret
+
+
+def first_matched(targ, arr):
+    for i, v in enumerate(arr):
+        if v == targ:
+            print(v)
+            return i
+    return 0
+
+
+def nearest(targ, arr):
+    for i, v in enumerate(arr):
+        if v > targ:
+            return i
+    return 0
+
+
+def toLocal(tstamp: list[int]) -> list[int]:
+    return [t+9*60*60 for t in tstamp]
+
+
 if __name__ == "__main__":
 
-    with open(CDATA_PATH) as f:
-        cdata = json.load(f)
-
-    with open(PDATA_PATH) as f:
-        pdata = json.load(f)
+    dlen = 180
 
     with open(BDATA_PATH) as f:
         bdata = json.load(f)
+        bdata = slice_after(bdata, dlen)
+
+    start_v = bdata["X"][0]
+
+    with open(CDATA_PATH) as f:
+        cdata = json.load(f)
+        # cdata["OpenTime"] = toLocal(cdata["OpenTime"])
+        i = first_matched(start_v, cdata["OpenTime"])
+        cdata = slice_after(cdata, i)
+
+    with open(PDATA_PATH) as f:
+        pdata = json.load(f)
+        i = nearest(start_v, pdata["X"])
+        pdata = slice_after(pdata, i)
 
     # candlesのほうが長い場合、長さをblenに合わせる
     blen = len(bdata["X"])

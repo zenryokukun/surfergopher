@@ -24,32 +24,40 @@ func breakThrough(v float64, inf *minmax.Inf) string {
 func fib(inf *minmax.Inf) string {
 	lvl := fibo.Level(inf.Scaled)
 	dec := ""
-	if lvl >= 5 {
+	if lvl == 0 {
 		if inf.Which == "B" {
 			dec = "BUY"
 		} else if inf.Which == "T" {
 			dec = "SELL"
 		}
-		logger(fmt.Sprintf("fibLvl>=5. recent:%v scaled:%v decision:%v", inf.Which, inf.Scaled, dec))
+		logger(fmt.Sprintf("fibLvl:0. recent:%v scaled:%v decision:%v", inf.Which, inf.Scaled, dec))
 	}
 
-	if lvl <= 1 {
+	if lvl == 2 {
 		if inf.Which == "B" {
-			dec = "BUY"
-		} else if inf.Which == "T" {
 			dec = "SELL"
+		} else if inf.Which == "T" {
+			dec = "BUY"
 		}
-		logger(fmt.Sprintf("fibLvl<=1. recent:%v scaled:%v decision:%v", inf.Which, inf.Scaled, dec))
+		logger(fmt.Sprintf("fibLvl:2. recent:%v scaled:%v decision:%v", inf.Which, inf.Scaled, dec))
 	}
 
-	//added
+	if lvl == 3 {
+		if inf.Which == "B" {
+			dec = "SELL"
+		} else if inf.Which == "T" {
+			dec = "BUY"
+		}
+		logger(fmt.Sprintf("fibLvl:3. recent:%v scaled:%v decision:%v", inf.Which, inf.Scaled, dec))
+	}
+
 	if lvl == 4 {
 		if inf.Which == "B" {
-			dec = "BUY"
-		} else if inf.Which == "T" {
 			dec = "SELL"
+		} else if inf.Which == "T" {
+			dec = "BUY"
 		}
-		logger(fmt.Sprintf("fibLvl==4. recent:%v scaled:%v decision:%v", inf.Which, inf.Scaled, dec))
+		logger(fmt.Sprintf("fibLvl:4. recent:%v scaled:%v decision:%v", inf.Which, inf.Scaled, dec))
 	}
 
 	return dec
