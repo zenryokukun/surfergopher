@@ -23,7 +23,7 @@ const (
 	//SPREAD_THRESH  = 1500.0                     //許容するスプレッド
 	//TSIZE          = "0.1"                      //取引量
 	BOTNAME  = "Surfer Gopher" //botの名前
-	VER      = "@v2.0"         //botのversion
+	VER      = "@v2.0.0"       //botのversion
 	PYSCRIPT = "./py/chart.py" //pythonスクリプト
 	IMG_PATH = "./py/tweet.png"
 )
