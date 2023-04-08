@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/zenryokukun/gotweet"
 	"github.com/zenryokukun/surfergopher/bktest"
 	"github.com/zenryokukun/surfergopher/gmo"
 	"github.com/zenryokukun/surfergopher/minmax"
@@ -391,6 +392,8 @@ func live() {
 	candles := newCandles(req, SYMBOL, TRADE_INTERVAL, dCnt) //ロウソク足取得
 	summaries := gmo.NewSummary(req, SYMBOL)
 
+	twitter := gotweet.NewTwitter("./twitter_conf.json")
+
 	if candles != nil && summaries != nil && summaries.Status == 0 {
 		//**************************************************
 		//必要なデータが取得できた場合
@@ -534,6 +537,7 @@ func live() {
 		//tweet
 		//*******************************************************
 		var valuation, posSize string
+
 		if len(closeIds) == 0 && len(posList) > 0 {
 			//保有positionがあり、今回決済されていない場合、評価額と保有量をセット
 			valuation, posSize = getLossGainAndSizeFromPos(posList)
@@ -562,8 +566,8 @@ func live() {
 			fmt.Println(string(b))
 		}
 
-		NewTwitter().tweetImage(tweetTxt, IMG_PATH)
-
+		// NewTwitter().tweetImage(tweetTxt, IMG_PATH)
+		twitter.Tweet(tweetTxt, IMG_PATH)
 		fmt.Printf("latest:%.f,max:%.f,min:.%f,scale:%f,decision:%v\n", latest, inf.Maxv, inf.Minv, inf.Scaled, dec)
 
 	} else {
@@ -571,7 +575,9 @@ func live() {
 		//データ取れなかった場合
 		//**************************************************
 		logger("could not get candles or summary response...")
-		NewTwitter().tweet(genErrorTweetText(), nil)
+		// NewTwitter().tweet(genErrorTweetText(), nil)
+		twitter.Tweet(genErrorTweetText())
+
 	}
 }
 
