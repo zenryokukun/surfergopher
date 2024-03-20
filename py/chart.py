@@ -1,178 +1,147 @@
-'''
-Generates tweet image from
-./candle.json,./trade.json,./balance.json
-'''
-import json
+import sqlite3
 import datetime
+import json
 from pathlib import Path
 import matplotlib.pyplot as plt
 
+BASE_PATH = Path(__file__).parents[1]
+CDATA_PATH = BASE_PATH / "data" / "candle.json"
+DB_PATH = BASE_PATH / "data.db"
+OUT_PATH = Path(__file__).parent / "tweet.png"
 
-DATA_PATH = Path(__file__).parents[1] / "data"
-CDATA_PATH = DATA_PATH / "candle.json"
-PDATA_PATH = DATA_PATH / "trade.json"
-BDATA_PATH = DATA_PATH / "balance.json"
+I_OPEN_TIME = 1
+I_OPEN_SIDE = 2
+I_OPEN_PRICE = 3
+I_CLOSE_TIME = 5
+I_CLOSE_PRICE = 7
+I_BALANCE = 10
 
-HERE = Path(__file__).parent
-OUT_PATH = HERE / "tweet.png"
+def select(n):
+  """HISTORYテーブルのデータを取得
+  HISTORYのレコード:
+    ID,
+    OPEN_TIME,OPEN_SIDE,OPEN_PRICE,OPEN_AMT,
+    CLOSE_TIME,CLOSE_SIDE,CLOSE_PRICE,CLOSE_AMT,
+    PROFIT,BALANCE
+  Params:
+      n: Number of rows to select.
+  Returns:
+      [(col1,col2..),...]: List of table records as tuple.
+  """
+  con = sqlite3.connect(DB_PATH)
+  cur = con.cursor()
+  cur.execute("select max(id) as start from history")
+  
+  _max = cur.fetchone()
+  _start = _max[0] - n
+  start = 0 if _start < 0 else _start + 1
+  
+  cur.execute("select * from history where id >= (?) ",(start,))
+  data = cur.fetchall() 
+  return data
 
 
-def chart(tdata, pdata, bdata, opath):
-    """グラフ表示
+def slice_after(after,histories):
+  for i,rec in enumerate(histories):
+    opentime = rec[I_OPEN_TIME]
+    if opentime > after:
+      break
 
-    Args:
-        tdata (dict): gmo.CandlesData
-        pdata (dict): open sell point data
-        bdata (dict): balance data
-    """
+  return histories[i:]
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.set_title("SURFER GOPHER RESULTS")
-    ax.set_ylabel("BTC_JPY")
 
-    # unix timestamp -> jst datestring
-    tdata_x_date = unixlist_to_datelist(tdata["OpenTime"])
+def chart(data,candles):
+  fig = plt.figure()
+  ax = fig.add_subplot(111)
+  ax.set_title("SURFER GOPHER RESULTS")
+  ax.set_ylabel("BTC_JPY")
 
-    ax.plot(tdata_x_date, tdata["Close"], label="close")
+  # 左グラフ：ロウソク足をプロット
+  candle_x = [unixlist_to_datelist(v) for v in candles["OpenTime"]]
+  candle_y = candles["Close"]
+  ax.plot(candle_x,candle_y,label="close")
 
-    openbuy_x = []
-    openbuy_y = []
-    opensell_x = []
-    opensell_y = []
-    close_x = []
-    close_y = []
-    for i in range(len(pdata["X"])):
-        _x = pdata["X"][i]
-        _y = pdata["Y"][i]
-        if pdata["Action"][i] == "OPEN":
-            if pdata["Side"][i] == "BUY":
-                openbuy_x.append(_x)
-                openbuy_y.append(_y)
-            else:
-                opensell_x.append(_x)
-                opensell_y.append(_y)
-        else:
-            close_x.append(_x)
-            close_y.append(_y)
+  # 新規注文（buy)
+  openbuy_x = []
+  openbuy_y = []
+  # 新規中温（sell）
+  opensell_x = []
+  opensell_y = []
+  # 決済注文
+  close_x = []
+  close_y = []
+  # 残高推移用
+  balance_x = []
+  balance_y = []
 
-    # unix timestamp -> jst datestring
-    openbuy_x_date = unixlist_to_datelist(openbuy_x)
-    opensell_x_date = unixlist_to_datelist(opensell_x)
-    close_x_date = unixlist_to_datelist(close_x)
+  for rec in data:
+    open_side = rec[I_OPEN_SIDE]
+    # 新規取引用
+    _ox = unixlist_to_datelist(rec[I_OPEN_TIME])
+    _oy = rec[I_OPEN_PRICE]
+    # 決済取引用
+    _cx = None if rec[I_CLOSE_TIME] is None or rec[I_CLOSE_TIME] == 0 else unixlist_to_datelist(rec[I_CLOSE_TIME])
+    _cy = rec[I_CLOSE_PRICE]
+    
+    if open_side == "BUY":
+        openbuy_x.append(_ox)
+        openbuy_y.append(_oy)
+    else:
+      opensell_x.append(_ox)
+      opensell_y.append(_oy)
+    
+    # ポジション保有中は決済情報がDBにセットされていないため、Noneを除外
+    if _cx is not None:
+      # 決済注文をセット
+      close_x.append(_cx)
+      close_y.append(_cy)
+      # 残高推移をセット
+      balance_x.append(_cx)
+      balance_y.append(rec[I_BALANCE])
+  
+  # 左グラフ: 取引情報をプロット
+  ax.scatter(openbuy_x,openbuy_y, label="@openBuy",color="red")
+  ax.scatter(opensell_x,opensell_y,label="@openSell",color="lime")
+  ax.scatter(close_x,close_y,label="@close",facecolors="none",edgecolors="black",s=80)
 
-    ax.scatter(openbuy_x_date, openbuy_y, label="@openBuy", color="red")
-    ax.scatter(opensell_x_date, opensell_y, label="@openSell", color="lime")
-    ax.scatter(close_x_date, close_y, label="@close",
-               facecolors="none", edgecolors="black", s=80)
-
-    ###########################################
-    # 右グラフ
-    ax2 = ax.twinx()
-    ax2.set_ylabel("balance")
-
-    # unix timestamp -> jst datestring
-    bdata_x_date = unixlist_to_datelist(bdata["X"])
-
-    ax2.plot(bdata_x_date, bdata["Y"], color="orange", label="totalProf")
-
-    ax.grid(True)
-    ax.legend(loc=1)
-    ax2.legend(loc=2)
-
-    '''日付を間引きして表示。データが増えたらコメントはずす。
-    for i, lbl in enumerate(ax.get_xticklabels()):
-        if i % 2 != 0:
-            lbl.set_visible(False)
-    '''
-    ax.ticklabel_format(style="plain", axis="y")
-    plt.gcf().autofmt_xdate()  # 日付を縦表記にする
-    plt.tight_layout()  # ラベルが見切れるの防止するために必要
-    plt.savefig(opath)  # 画像として保存
+  # *************************************************
+  # 右グラフ
+  ax2 = ax.twinx()
+  ax2.set_ylabel("balance")
+  ax2.plot(balance_x,balance_y,color="orange",label="totalProf")
+  # *************************************************
+  
+  ax.ticklabel_format(style="plain",axis="y")
+  ax.grid(True)
+  ax.legend(loc=0)
+  ax2.legend(loc=4)
+  plt.gcf().autofmt_xdate()
+  plt.tight_layout()
+  plt.savefig(OUT_PATH)
 
 
 def unixlist_to_datelist(uts):
-    """[]unix timestamp ->[]date string
+  """unix timestamp ->date string
 
-    Args:
-        uts (float): unix timestamp
+  Args:
+    uts (float): unix timestamp
 
-    Returns:
-        []string:date string
-    """
-    ret = []
-    for u in uts:
-        ret.append(datetime.datetime.fromtimestamp(u))
-    return ret
-
-
-def slice_after(obj, after: int):
-    # obj -> {key1:[any,],key2:[any,]}
-    # dictionaryのvalueはlistである必要生。
-    ret = {k: v[after:] for k, v in obj.items()}
-    return ret
-
-
-def slice_backwards(obj, after: int):
-    ret = {k: v[-after:] for k, v in obj.items()}
-    return ret
-
-
-def first_matched(targ, arr):
-    for i, v in enumerate(arr):
-        if v == targ:
-            print(v)
-            return i
-    return 0
-
-
-def nearest(targ, arr):
-    for i, v in enumerate(arr):
-        if v > targ:
-            return i
-    return 0
-
-
-def toLocal(tstamp: list[int]) -> list[int]:
-    return [t+9*60*60 for t in tstamp]
+  Returns:
+    string:date string
+  """
+  return datetime.datetime.fromtimestamp(uts)
 
 
 if __name__ == "__main__":
+  # 取引データ
+  data = select(500)
+  # ロウソク足データ
+  with open(CDATA_PATH) as f:
+    candles = json.load(f)
+    # ファイルには500足分入っている。多いので調整
+    candles = {k:v[-400:] for k,v in candles.items()}
+  
+  first_candle_x = candles["OpenTime"][0]
+  data = slice_after(first_candle_x,data)
 
-    dlen = 400  # 表示するデータ数
-
-    with open(BDATA_PATH) as f:
-        # dlen分のデータになるよう、古いデータは落とす
-        bdata = json.load(f)
-        bdata = slice_backwards(bdata, dlen)
-
-    with open(CDATA_PATH) as f:
-        # dlen分のデータになるよう、古いデータは落とす
-        cdata = json.load(f)
-        cdata = slice_backwards(cdata, dlen)
-
-    # ろうそくデータの一番はじめの時間
-    start_v = cdata["OpenTime"][0]
-
-    with open(PDATA_PATH) as f:
-        '''
-        取引データは取引のあった時間のみ出力される。bdataのように毎フレーム出力はされないため、
-        ろうそくデータの最初の時間より後のデータのみを残す。
-        '''
-        pdata = json.load(f)
-        i = nearest(start_v, pdata["X"])
-        pdata = slice_after(pdata, i)
-
-    # 稼働初めでbdataがcdataより短い場合等を想定。今は該当しないと思う。
-    # candlesのほうが長い場合、長さをblenに合わせる
-    blen = len(bdata["X"])
-    clen = len(cdata["Open"])
-    if clen > blen:
-        for key in cdata.keys():
-            cdata[key] = cdata[key][-blen:]
-    # candlesのほうが短い場合、長さをclenに合わせる
-    elif clen < blen:
-        for key in bdata.keys():
-            bdata[key] = bdata[key][-clen:]
-
-    chart(cdata, pdata, bdata, OUT_PATH)
+  chart(data,candles)

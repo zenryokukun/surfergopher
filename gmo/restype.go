@@ -5,14 +5,14 @@ import (
 	"strconv"
 )
 
-//variable
+// variable
 const ok = 0
 
 type GMOAPI interface {
 	ErrorLog() string
 }
 
-//response types
+// response types
 type Base struct {
 	Status       int                 `json:"status"`
 	Msg          []map[string]string `json:"messages"`
@@ -116,9 +116,9 @@ type ExecutionsRes struct {
 	Data struct {
 		Pagination pagination `json:"pagination"`
 		List       []struct {
-			ExecutionId uint32 `json:"executionId"`
-			OrderId     uint32 `json:"orderId"`
-			PositionId  uint32 `json:"positionId"`
+			ExecutionId uint64 `json:"executionId"`
+			OrderId     uint64 `json:"orderId"`
+			PositionId  uint64 `json:"positionId"`
 			Symbol      string `json:"symbol"`
 			Side        string `json:"side"`
 			SettleType  string `json:"settleType"`
@@ -132,7 +132,7 @@ type ExecutionsRes struct {
 }
 
 type Positions struct {
-	PositionId   uint32 `json:"positionId"`
+	PositionId   uint64 `json:"positionId"`
 	Symbol       string `json:"symbol"`
 	Side         string `json:"side"`
 	Size         string `json:"size"`
@@ -180,7 +180,7 @@ type CancelAllRes struct {
 	Data []int `json:"data"`
 }
 
-//response.Data converted types
+// response.Data converted types
 type CandlesData struct {
 	Open     []float64
 	Close    []float64
@@ -199,9 +199,9 @@ type TickerData struct {
 	Timestamp string
 }
 
-//********************************************************************************
-//methods
-//********************************************************************************
+// ********************************************************************************
+// methods
+// ********************************************************************************
 func (b *Base) ErrorLog() string {
 	if b.Status == 0 {
 		return ""
@@ -276,8 +276,8 @@ func (c *CandlesData) Slice(st, end int) *CandlesData {
 	return c
 }
 
-//Ticker型をTickerDataに変換
-//Tickerは価格をintで持つためfloat64に変換
+// Ticker型をTickerDataに変換
+// Tickerは価格をintで持つためfloat64に変換
 func floatTicker(t *Ticker) *TickerData {
 	ask := float64(t.Ask)
 	bid := float64(t.Bid)

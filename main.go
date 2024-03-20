@@ -1,11 +1,12 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
-	_ "os/exec"
 	"strconv"
 	"time"
 
@@ -13,23 +14,23 @@ import (
 	"github.com/zenryokukun/surfergopher/bktest"
 	"github.com/zenryokukun/surfergopher/gmo"
 	"github.com/zenryokukun/surfergopher/minmax"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 const (
-	TEST_MODE = false //本番かテストモードか
-	//SYMBOL         = "BTC_JPY"
+	TEST_MODE      = false // 本番かテストモードか
 	GLOBAL_FPATH   = "./globals.json"
-	CLOSEDID_FPATH = "./data/closedposlist.txt" //closeしたorderIdのリスト
-	TPROF_FPATH    = "./data/totalprof.txt"     //総利益を保管しておくファイル
-	//SPREAD_THRESH  = 1500.0                     //許容するスプレッド
-	//TSIZE          = "0.1"                      //取引量
-	BOTNAME  = "Surfer Gopher" //botの名前
-	VER      = "@v2.0.0"       //botのversion
-	PYSCRIPT = "./py/chart.py" //pythonスクリプト
-	IMG_PATH = "./py/tweet.png"
+	CLOSEDID_FPATH = "./data/closedposlist.txt" // closeしたorderIdのリスト
+	CDATA_FPATH    = "./data/candle.json"       // ロウソク足を出力するファイル
+	BOTNAME        = "Surfer Gopher"            // botの名前
+	VER            = "@v2.0.0"                  // botのversion
+	PYSCRIPT       = "./py/chart.py"            // pythonスクリプト
+	IMG_PATH       = "./py/tweet.png"           // tweetする画像のパス
+	DB_PATH        = "./data.db"                // sqlite3 dbファイルのパス
 )
 
-//環境によって分けるためグローバル変数にした
+// 環境によって分けるためグローバル変数にした
 var (
 	SYMBOL         string
 	TRADE_INTERVAL string
@@ -37,9 +38,10 @@ var (
 	PROF_RATIO     float64
 	LOSS_RATIO     float64
 	SPREAD_THRESH  float64
+	TSIZE_F        float32
 )
 
-//グローバル変数をファイルから設定
+// グローバル変数をファイルから設定
 func setGlobalVars() {
 	type gl struct {
 		Symbol        string  `json:"symbol"`
@@ -61,9 +63,14 @@ func setGlobalVars() {
 	LOSS_RATIO = gdata.LossRatio
 	TSIZE = gdata.Tsize
 	SPREAD_THRESH = gdata.SpreadThresh
+	amt, err := strconv.ParseFloat(TSIZE, 32)
+	if err != nil {
+		logger(fmt.Sprintf("could not parse TSIZE to float:%v\n", amt))
+	}
+	TSIZE_F = float32(amt)
 }
 
-//Returns orderId
+// Returns orderId
 func marketOpen(r *gmo.ReqHandler, side, size string) string {
 	if waitForSpread(r) {
 		//res := _marketOpen(r, side, size)
@@ -77,8 +84,7 @@ func marketOpen(r *gmo.ReqHandler, side, size string) string {
 	return ""
 }
 
-//Returns closeordeId
-//
+// Returns closeordeId
 func marketCloseSide(r *gmo.ReqHandler, p *gmo.Summary) string {
 	tradeSide := oppositeSide(p.Side)
 	size := fmt.Sprint(p.PositionQuantity)
@@ -93,7 +99,7 @@ func marketCloseSide(r *gmo.ReqHandler, p *gmo.Summary) string {
 	return ""
 }
 
-//Returns slice of closeOrderIds
+// Returns slice of closeOrderIds
 func marketCloseBoth(r *gmo.ReqHandler, pos []gmo.Summary) []string {
 	ids := []string{}
 	for _, p := range pos {
@@ -119,8 +125,8 @@ func newTicker(r *gmo.ReqHandler) *gmo.TickerData {
 	}
 }
 
-//spread1が閾値以下になるのを待つ
-//cnt分待っても閾値以下にならなければfalseを返す
+// spread1が閾値以下になるのを待つ
+// cnt分待っても閾値以下にならなければfalseを返す
 func waitForSpread(r *gmo.ReqHandler) bool {
 	cnt := 100
 	for i := 0; i < cnt; i++ {
@@ -137,7 +143,7 @@ func waitForSpread(r *gmo.ReqHandler) bool {
 	return false
 }
 
-//gmo.Excecutionsが取得出来るまで待ち、lossGainを返す
+// gmo.Excecutionsが取得出来るまで待ち、lossGainを返す
 func waitForLossGain(r *gmo.ReqHandler, oid string) float64 {
 	cnt := 7
 	sum := 0.0
@@ -161,7 +167,7 @@ func waitForLossGain(r *gmo.ReqHandler, oid string) float64 {
 	return sum
 }
 
-//注文ステータスがEXECUTED（全量約定）まで待つ関数
+// 注文ステータスがEXECUTED（全量約定）まで待つ関数
 func waitUntilExecuted(r *gmo.ReqHandler, oid string) bool {
 	cnt := 10
 	for i := 0; i < cnt; i++ {
@@ -178,7 +184,7 @@ func waitUntilExecuted(r *gmo.ReqHandler, oid string) bool {
 	return false
 }
 
-//closeIds分waitForLossGainを呼び出し、損益を合計して文字列で返す
+// closeIds分waitForLossGainを呼び出し、損益を合計して文字列で返す
 func getLossGain(r *gmo.ReqHandler, closeIds []string) string {
 	sum := 0.0
 	for _, c := range closeIds {
@@ -193,7 +199,7 @@ func getLossGain(r *gmo.ReqHandler, closeIds []string) string {
 	return fmt.Sprint(sum)
 }
 
-//保有positionのサマリから合計損益と保有量を返す
+// 保有positionのサマリから合計損益と保有量を返す
 func getLossGainAndSizeFromPos(posList []gmo.Summary) (string, string) {
 	lg := 0.0
 	size := 0.0
@@ -204,75 +210,10 @@ func getLossGainAndSizeFromPos(posList []gmo.Summary) (string, string) {
 	return fmt.Sprint(lg), fmt.Sprint(size)
 }
 
-//総利益を更新しファイルに出力。更新した総利益を返す。
-//prof -> 今回利益
-func updateTotalProf(prof string) string {
-	//string -> int
-	profi, err := strconv.ParseInt(prof, 10, 32)
-	if err != nil {
-		fmt.Println(err)
-		return ""
-	}
-
-	//ファイルから総利益を取得
-	b, err := os.ReadFile(TPROF_FPATH)
-	if err != nil {
-		fmt.Println(err)
-		return ""
-	}
-	//vimでは最後に自動で改行が付く仕様のよう。。。byte->stringに変換、
-	//crとlfを除外し、int変換
-	profStr := chopNewLine(string(b))
-	tprof, err := strconv.ParseInt(profStr, 10, 32)
-	if err != nil {
-		fmt.Println(err)
-		return ""
-	}
-	//総利益を更新し、int -> stringに変換
-	newTProfStr := fmt.Sprint(tprof + profi)
-
-	//新総利益をファイルに出力
-	f, err := os.Create(TPROF_FPATH)
-	if err != nil {
-		fmt.Println(err)
-		return ""
-	}
-	defer f.Close()
-	f.Write([]byte(newTProfStr))
-
-	return newTProfStr
-}
-
-//総利益をファイルから取得する関数
-func getTotalProf() string {
-	b, err := os.ReadFile(TPROF_FPATH)
-	if err != nil {
-		fmt.Println(err)
-		return ""
-	}
-	return string(b)
-
-}
-
-//ファイルにcloseしたorderIdを追記
-func writeCloseIds(closeIds []string) {
-	f, err := os.OpenFile(CLOSEDID_FPATH, os.O_APPEND|os.O_WRONLY, 0777)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	defer f.Close()
-
-	for _, v := range closeIds {
-		f.Write([]byte(v + "\n"))
-	}
-}
-
-//p:（平均）購入価格
-//v:現在価格
-//ratio:利益確定レート
-//side:"BUY"or"SELL"
+// p:（平均）購入価格
+// v:現在価格
+// ratio:利益確定レート
+// side:"BUY"or"SELL"
 func isProfFilled(p, v, ratio float64, side string) bool {
 	if side == "BUY" {
 		return (v-p)/p >= ratio
@@ -281,10 +222,10 @@ func isProfFilled(p, v, ratio float64, side string) bool {
 	}
 }
 
-//p:（平均）購入価格
-//v:現在価格
-//ratio:損切レート
-//side:"BUY"or"SELL"
+// p:（平均）購入価格
+// v:現在価格
+// ratio:損切レート
+// side:"BUY"or"SELL"
 func isLossFilled(p, v, ratio float64, side string) bool {
 	if side == "BUY" {
 		return (v-p)/p <= ratio
@@ -293,9 +234,9 @@ func isLossFilled(p, v, ratio float64, side string) bool {
 	}
 }
 
-//gmoのサマリを操作して利確する関数
-//v:現在価格
-//ratio:利確レシオ
+// gmoのサマリを操作して利確する関数
+// v:現在価格
+// ratio:利確レシオ
 func doProf(r *gmo.ReqHandler, pos []gmo.Summary, v, ratio float64) string {
 	id := ""
 	for _, p := range pos {
@@ -311,7 +252,7 @@ func doProf(r *gmo.ReqHandler, pos []gmo.Summary, v, ratio float64) string {
 	return id
 }
 
-//損切する関数
+// 損切する関数
 func doLoss(r *gmo.ReqHandler, pos []gmo.Summary, v, ratio float64) string {
 	id := ""
 	for _, p := range pos {
@@ -327,19 +268,9 @@ func doLoss(r *gmo.ReqHandler, pos []gmo.Summary, v, ratio float64) string {
 	return id
 }
 
-//[]gmo.Summaryから、sideパラメタで指定したものだけ抽出する
-func specifyPos(pos []gmo.Summary, side string) *gmo.Summary {
-	for _, p := range pos {
-		if side == p.Side {
-			return &p
-		}
-	}
-	return nil
-}
-
-//c1,c2で長さ1以上のほうを返す
-//両方長さ1以上ならc1を返す
-//両方長さ０なら空文字を返す
+// c1,c2で長さ1以上のほうを返す
+// 両方長さ1以上ならc1を返す
+// 両方長さ０なら空文字を返す
 func getCloseId(c1, c2 string) string {
 	if len(c1) > 0 {
 		return c1
@@ -362,9 +293,8 @@ func genTweetText(prof, totalProf, valuation, posSize string) string {
 	return txt
 }
 
-//error時のツイートmessage
-func genErrorTweetText() string {
-	tprof := getTotalProf()
+// error時のツイートmessage
+func genErrorTweetText(tprof string) string {
 	tags := "#BTC #Bitcoin"
 	txt := "[" + getNow() + "]" + "\n" //[2022-4-5 23:00]
 	txt += "🏄" + BOTNAME + VER + "🏄" + "\n"
@@ -374,20 +304,25 @@ func genErrorTweetText() string {
 	return txt
 }
 
-//main処理
-//一定間隔のバッチで実行することを想定
-//基本１ポジションのみ持っていることを想定
-//複数あった場合にはエラーにはならないが、グラフとか総利益とかの値は保証されない
+// main処理
+// 一定間隔のバッチで実行することを想定
+// 基本１ポジションのみ持っていることを想定
+// 複数あった場合にはエラーにはならないが、グラフとか総利益とかの値は保証されない
 func live() {
 	//**************************************************
 	//初期化
 	//**************************************************
 	req := gmo.InitGMO("./conf.json") //リクエストハンドラ初期化
-	//titv := "4hour"                   //trade interval
-	//profR := 0.05                     //profit ratio
-	//lossR := -0.05                    //losscut ratio
+
 	_dCnt := 80       //ろうそく足の数
 	dCnt := _dCnt + 1 //_dCnt分のろうそく足を評価用、直近を現在価格とするため+1する
+
+	// sqlite3 開く
+	db, err := sql.Open("sqlite3", DB_PATH)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
 
 	candles := newCandles(req, SYMBOL, TRADE_INTERVAL, dCnt) //ロウソク足取得
 	summaries := gmo.NewSummary(req, SYMBOL)
@@ -412,8 +347,6 @@ func live() {
 		closeIds := []string{}
 		//openid
 		openId := ""
-		//取引履歴用データ
-		histo := &History{}
 		//判定用変数
 		dec := ""
 
@@ -429,10 +362,7 @@ func live() {
 				closeIds = append(closeIds, ids...)
 				if len(ids) > 0 {
 					logger(fmt.Sprintf("breakthrough:latest:%.f max:%.f min:%.f", latest, inf.Maxv, inf.Minv))
-					//取引向きをポジションから設定するように修正
-					//複数ある場合は先頭の向きを設定
-					side := posList[0].Side
-					histo.addHistory(otime, latest, side, "CLOSE")
+					// 決済のDB更新はもっと下でやる
 				}
 			}
 		}
@@ -447,9 +377,8 @@ func live() {
 		cid := getCloseId(c1, c2)
 		if len(cid) > 0 {
 			closeIds = append(closeIds, cid)
-			//取引履歴設定。複数positionがある場合、先頭のサイドで見做し設定。
-			side := posList[0].Side
-			histo.addHistory(otime, latest, side, "CLOSE")
+			// 決済のDB更新はもっと下でやる
+
 		}
 
 		//*******************************************************
@@ -481,9 +410,7 @@ func live() {
 						cid := getCloseId(c1, c2)
 						if len(cid) > 0 {
 							closeIds = append(closeIds, cid)
-							//取引履歴設定。複数positionがある場合、先頭のサイドで見做し設定。
-							side := posList[0].Side
-							histo.addHistory(otime, latest, side, "CLOSE")
+							// 決済のDB更新はもっと下でやる
 						}
 					}
 				}
@@ -498,9 +425,7 @@ func live() {
 			//保有ポジなしもしくは上で決済されている場合は新規取引
 			if len(posList) == 0 || len(closeIds) > 0 {
 				openId = marketOpen(req, dec, TSIZE)
-				if len(openId) > 0 {
-					histo.addHistory(otime, latest, dec, "OPEN")
-				}
+
 			}
 		}
 
@@ -510,28 +435,62 @@ func live() {
 		}
 
 		//*******************************************************
-		//ファイル出力系
+		// DB更新系
 		//*******************************************************
 		var totalP, fixedProf string
-		//closeIdsをファイルにアペンド
-		writeCloseIds(closeIds)
-		//決済している場合は総利益を更新してファイルに出力。
+		//決済している場合、closeIdsをDBに挿入
+		if len(closeIds) > 0 {
+			insertCloseIds(db, closeIds, uint64(otime))
+		}
+
+		//決済している場合、取引履歴と損益をDBに挿入
 		if len(closeIds) > 0 {
 			fixedProf = getLossGain(req, closeIds) //今回の確定損益
-			updateTotalProf(fixedProf)             //総利益のファイルを更新
+			// fixedProfをint64に変換
+			fixedProfInt, err := strconv.ParseInt(fixedProf, 10, 64)
+			if err != nil {
+				logger("Could not parse fixedProf to int: " + fixedProf)
+			}
+			// dbから直近の累計損益を取得
+			recentBalance := selectRecentBalance(db)
+			// 累計損益を更新
+			totalPInt := int(fixedProfInt) + recentBalance
+			// db「更新」。
+			// 「既存ポジション決済」→「新規取引」が同一フレームで実行される可能性があるため、
+			// db「挿入」(insertHistory)より前に実行すること。
+			// 新規取引のdb挿入が先に実行されると、それが更新されてしまうため。
+			updateHistory(db, &History{
+				CloseTime: uint64(otime),
+				// 前から決済の向きはposList[0].Sideから取得していたので活かす。
+				// 決済時のポジションなので、逆向きにする。
+				// 向きが異なるポジションがあった場合は最初のポジション向きでみなす。
+				CloseSide:  oppositeSide(posList[0].Side),
+				ClosePrice: uint64(latest),
+				CloseAmt:   TSIZE_F,
+				Profit:     int(fixedProfInt),
+				Balance:    totalPInt,
+			})
+			// 後で使うように文字列としてセット
+			totalP = string(fmt.Sprint(totalPInt))
 		}
-		//総利益をファイルから取得。今回決済していない場合でも使うので上のif分の外に記載
-		//float64に変換して残高推移ファイルに出力
-		totalP = getTotalProf()
-		if totalPfloat, err := strconv.ParseFloat(totalP, 64); err == nil {
-			AddBalance(otime, totalPfloat)
+
+		// 新規取引をしている場合、DBに挿入
+		// 「既存ポジション決済」→「新規取引」が同一フレームで実行される可能性があるため、
+		// db更新（updateHistory）の後に実行する。
+		if len(openId) > 0 {
+			insertHistory(db, &History{
+				OpenTime:  uint64(otime),
+				OpenSide:  dec,
+				OpenPrice: uint64(latest),
+				OpenAmt:   TSIZE_F,
+			})
+			insertOpenId(db, openId, uint64(otime))
 		}
+
 		//グラフ用のロウソク足を取得して出力
 		if cdGraph := newCandles(req, SYMBOL, TRADE_INTERVAL, 500); cdGraph != nil {
 			AddCandleData(cdGraph) //グラフ用　ロウソク足出力
 		}
-		//取引履歴を出力
-		AddTradeHistory(histo)
 
 		//*******************************************************
 		//tweet
@@ -541,10 +500,6 @@ func live() {
 		if len(closeIds) == 0 && len(posList) > 0 {
 			//保有positionがあり、今回決済されていない場合、評価額と保有量をセット
 			valuation, posSize = getLossGainAndSizeFromPos(posList)
-			//総利益に評価額を加減し、総利益ファイルを書き換える。
-			//グラフに評価額を表示させるために追加した。
-			totalPWithVal := addStringFloat(totalP, valuation)
-			ReplaceBalance(totalPWithVal)
 		} else if len(openId) > 0 {
 			//今回新規取引している場合、新たにサマリを取得して設定
 			fmt.Println("[test] in len(openId)>0")
@@ -566,7 +521,6 @@ func live() {
 			fmt.Println(string(b))
 		}
 
-		// NewTwitter().tweetImage(tweetTxt, IMG_PATH)
 		twitter.Tweet(tweetTxt, IMG_PATH)
 		fmt.Printf("latest:%.f,max:%.f,min:.%f,scale:%f,decision:%v\n", latest, inf.Maxv, inf.Minv, inf.Scaled, dec)
 
@@ -575,8 +529,8 @@ func live() {
 		//データ取れなかった場合
 		//**************************************************
 		logger("could not get candles or summary response...")
-		// NewTwitter().tweet(genErrorTweetText(), nil)
-		twitter.Tweet(genErrorTweetText())
+		tProf := selectRecentBalance(db)
+		twitter.Tweet(genErrorTweetText(fmt.Sprint(tProf)))
 
 	}
 }
@@ -590,19 +544,6 @@ func main() {
 
 	//global変数設定
 	setGlobalVars()
-	//必要なファイルが無い場合はからファイル作成
-	doesExist(
-		//POSITION_FPATH,
-		//ORDERID_FPATH,
-		CLOSEDID_FPATH,
-		TPROF_FPATH,
-	)
-	//graph.go内のパス
-	doesExist(
-		CDATA_FPATH,
-		BDATA_FPATH,
-		TRADE_FPATH,
-	)
 
 	if TEST_MODE {
 		test()

@@ -1,11 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"runtime"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/zenryokukun/surfergopher/gmo"
@@ -52,8 +51,8 @@ func newCandles(r *gmo.ReqHandler, sym, itv string, cnt int) *gmo.CandlesData {
 	return data
 }
 
-//GetCandlesのitvに応じた日付レイアウトを返す関数
-//goでは"2006"-> YYYY, "01" -> MM, "02" -> DD　のフォーマットにされる仕様
+// GetCandlesのitvに応じた日付レイアウトを返す関数
+// goでは"2006"-> YYYY, "01" -> MM, "02" -> DD　のフォーマットにされる仕様
 func dateLayout(itv string) string {
 	var layout string
 	if itv == "4hour" || itv == "1day" || itv == "1week" || itv == "1month" {
@@ -62,10 +61,6 @@ func dateLayout(itv string) string {
 		layout = "20060102" //YYYYMMDDにフォーマットされる
 	}
 	return layout
-}
-
-func toTime(ut int64) time.Time {
-	return time.Unix(ut, 0)
 }
 
 // "2022-08-20T00:01:02.604Z"のフォーマットの文字列を
@@ -79,15 +74,6 @@ func convUTCStringToJSTStamp(dstr string) time.Time {
 	jt := t.In(loc)
 	nt := time.Date(jt.Year(), jt.Month(), jt.Day(), jt.Hour(), 0, 0, 0, loc)
 	return nt
-}
-
-func strToUint32(s string) uint32 {
-	i, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		fmt.Println(err)
-		return 0
-	}
-	return uint32(i)
 }
 
 func getNow() string {
@@ -110,7 +96,7 @@ func oppositeSide(side string) string {
 	return ""
 }
 
-//Linux,Windowsによってコマンドが違うのでここで解決する
+// Linux,Windowsによってコマンドが違うのでここで解決する
 func genPyCommand() string {
 	//"windows" or "linux"
 	switch runtime.GOOS {
@@ -123,39 +109,17 @@ func genPyCommand() string {
 	}
 }
 
-//パラメタのファイルが存在しなければ作る
-func doesExist(s ...string) {
-	for _, v := range s {
-		_, err := os.Stat(v)
-		if err != nil && os.IsNotExist(err) {
-			f, err := os.Create(v)
-			if err != nil {
-				fmt.Println(err)
-			}
-			//TPROF_FPATHなら"0"を入れておく
-			if v == TPROF_FPATH {
-				f.Write([]byte("0"))
-			}
-			f.Close()
-		}
+// ロウソク足をファイルに出力
+func AddCandleData(cd *gmo.CandlesData) {
+	b, err := json.MarshalIndent(cd, "", " ")
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
-}
-
-//文字列→小数点に変換して足し算して返す関数
-//["1.1","2.2"] -> 3.3
-func addStringFloat(f ...string) float64 {
-	sum := 0.0
-	for _, v := range f {
-		if vfloat, err := strconv.ParseFloat(v, 64); err == nil {
-			sum += vfloat
-		}
+	f, err := os.Create(CDATA_FPATH)
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
-	return sum
-}
-
-//改行コード（cr lf）を削除
-func chopNewLine(s string) string {
-	ret := strings.TrimSuffix(s, "\n")  //lf削除
-	ret = strings.TrimSuffix(ret, "\r") //cr削除
-	return ret
+	f.Write(b)
 }
