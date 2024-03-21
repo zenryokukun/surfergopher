@@ -435,9 +435,27 @@ func live() {
 		}
 
 		//*******************************************************
+		// 損益計算: 後のDB更新やtweet処理で使う変数
+		//*******************************************************
+
+		// 今回の確定損益（文字列）。決済していない場合は"0.0"。
+		fixedProf := getLossGain(req, closeIds)
+		// dbから直近の累計損益を取得
+		recentBalance := selectRecentBalance(db)
+		// 確定損益（文字列）をint64に変換
+		fixedProfInt, err := strconv.ParseInt(fixedProf, 10, 64)
+		if err != nil {
+			logger("Could not parse fixedProf to int: " + fixedProf)
+		}
+		// 累計損益を更新
+		totalPInt := int(fixedProfInt) + recentBalance
+		// tweetで使うように文字列としてセット
+		totalP := fmt.Sprint(totalPInt)
+
+		//*******************************************************
 		// DB更新系
 		//*******************************************************
-		var totalP, fixedProf string
+
 		//決済している場合、closeIdsをDBに挿入
 		if len(closeIds) > 0 {
 			insertCloseIds(db, closeIds, uint64(otime))
@@ -445,16 +463,6 @@ func live() {
 
 		//決済している場合、取引履歴と損益をDBに挿入
 		if len(closeIds) > 0 {
-			fixedProf = getLossGain(req, closeIds) //今回の確定損益
-			// fixedProfをint64に変換
-			fixedProfInt, err := strconv.ParseInt(fixedProf, 10, 64)
-			if err != nil {
-				logger("Could not parse fixedProf to int: " + fixedProf)
-			}
-			// dbから直近の累計損益を取得
-			recentBalance := selectRecentBalance(db)
-			// 累計損益を更新
-			totalPInt := int(fixedProfInt) + recentBalance
 			// db「更新」。
 			// 「既存ポジション決済」→「新規取引」が同一フレームで実行される可能性があるため、
 			// db「挿入」(insertHistory)より前に実行すること。
@@ -470,8 +478,6 @@ func live() {
 				Profit:     int(fixedProfInt),
 				Balance:    totalPInt,
 			})
-			// 後で使うように文字列としてセット
-			totalP = string(fmt.Sprint(totalPInt))
 		}
 
 		// 新規取引をしている場合、DBに挿入
